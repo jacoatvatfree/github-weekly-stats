@@ -1,17 +1,14 @@
 export class StatsCalculator {
-  static calculateMonthlyIssueStats(
+  static calculateDailyIssueStats(
     issues,
     fromDate,
     toDate,
     currentOpenIssueCount,
   ) {
-    const monthDiff =
-      toDate.getMonth() -
-      fromDate.getMonth() +
-      12 * (toDate.getFullYear() - fromDate.getFullYear()) +
-      1;
+    // Calculate number of days between dates
+    const dayDiff = Math.floor((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
 
-    const monthlyStats = Array(monthDiff)
+    const dailyStats = Array(dayDiff)
       .fill()
       .map(() => ({
         opened: 0,
@@ -19,57 +16,60 @@ export class StatsCalculator {
         total: 0,
       }));
 
+    // Count issues that were already open before the start date
+    const preExistingOpenIssues = issues.filter((issue) => {
+      const createdDate = new Date(issue.created_at);
+      const closedDate = issue.closed_at ? new Date(issue.closed_at) : null;
+      return createdDate < fromDate && (!closedDate || closedDate >= fromDate);
+    }).length;
+
     const sortedIssues = [...issues].sort(
       (a, b) => new Date(a.created_at) - new Date(b.created_at),
     );
 
-    let runningTotal = 0;
+    let runningTotal = preExistingOpenIssues; // Start with pre-existing open issues
 
     sortedIssues.forEach((issue) => {
       const createdDate = new Date(issue.created_at);
       const closedDate = issue.closed_at ? new Date(issue.closed_at) : null;
 
       if (createdDate >= fromDate && createdDate <= toDate) {
-        const monthIndex =
-          createdDate.getMonth() -
-          fromDate.getMonth() +
-          12 * (createdDate.getFullYear() - fromDate.getFullYear());
-        monthlyStats[monthIndex].opened++;
-        runningTotal++;
+        const dayIndex = Math.floor(
+          (createdDate - fromDate) / (1000 * 60 * 60 * 24),
+        );
+        if (dayIndex >= 0 && dayIndex < dailyStats.length) {
+          dailyStats[dayIndex].opened++;
+          runningTotal++;
+        }
       }
 
       if (closedDate && closedDate >= fromDate && closedDate <= toDate) {
-        const monthIndex =
-          closedDate.getMonth() -
-          fromDate.getMonth() +
-          12 * (closedDate.getFullYear() - fromDate.getFullYear());
-        monthlyStats[monthIndex].closed++;
-        runningTotal--;
-      }
-
-      // Update running total for all months after this issue
-      if (createdDate >= fromDate && createdDate <= toDate) {
-        const monthIndex =
-          createdDate.getMonth() -
-          fromDate.getMonth() +
-          12 * (createdDate.getFullYear() - fromDate.getFullYear());
-        for (let i = monthIndex; i < monthlyStats.length; i++) {
-          monthlyStats[i].total = runningTotal;
+        const dayIndex = Math.floor(
+          (closedDate - fromDate) / (1000 * 60 * 60 * 24),
+        );
+        if (dayIndex >= 0 && dayIndex < dailyStats.length) {
+          dailyStats[dayIndex].closed++;
+          runningTotal--;
         }
       }
     });
 
-    const lastMonthIndex =
-      toDate.getMonth() -
-      fromDate.getMonth() +
-      12 * (toDate.getFullYear() - fromDate.getFullYear());
-    const padding = currentOpenIssueCount - monthlyStats[lastMonthIndex].total;
+    // Set initial total and calculate cumulative totals
+    let currentTotal = preExistingOpenIssues;
+    for (let i = 0; i < dailyStats.length; i++) {
+      currentTotal = currentTotal + dailyStats[i].opened - dailyStats[i].closed;
+      dailyStats[i].total = currentTotal;
+    }
 
-    monthlyStats.forEach((stat, i) => {
+    // Adjust the final total if needed
+    const padding =
+      currentOpenIssueCount - dailyStats[dailyStats.length - 1].total;
+
+    dailyStats.forEach((stat) => {
       stat.total += padding;
     });
 
-    return monthlyStats;
+    return dailyStats;
   }
 
   static categorizePRTypes(prs) {
@@ -109,23 +109,24 @@ export class StatsCalculator {
       commits: repoStats.reduce((sum, repo) => {
         if (!repo.contributorStats) return sum;
 
-        return (
-          sum +
-          repo.contributorStats.reduce((repoSum, contributor) => {
+        const repoCommits = repo.contributorStats.reduce(
+          (repoSum, contributor) => {
             if (!contributor.weeks) return repoSum;
 
-            return (
-              repoSum +
-              contributor.weeks.reduce((weekSum, week) => {
-                const weekDate = new Date(week.w * 1000);
-                if (weekDate >= fromDate && weekDate <= toDate) {
-                  return weekSum + (week.c || 0);
-                }
-                return weekSum;
-              }, 0)
-            );
-          }, 0)
+            const weekCommits = contributor.weeks.reduce((weekSum, week) => {
+              const weekDate = new Date(week.w * 1000);
+              if (weekDate >= fromDate && weekDate <= toDate) {
+                return weekSum + (week.c || 0);
+              }
+              return weekSum;
+            }, 0);
+
+            return repoSum + weekCommits;
+          },
+          0,
         );
+
+        return sum + repoCommits;
       }, 0),
       issues: {
         opened: repoStats.reduce((sum, repo) => sum + repo.issues.opened, 0),

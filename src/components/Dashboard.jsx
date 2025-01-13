@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   CodeBracketIcon,
+  ChatBubbleBottomCenterTextIcon,
+  ArrowsRightLeftIcon,
   CircleStackIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
@@ -44,7 +46,7 @@ export default function Dashboard({ credentials, onReset }) {
           members: organization.getMostActiveMembers(),
           yearlyStats: organization.getYearlyStats(),
           prTypes: organization.getPullRequestTypeStats(),
-          monthlyIssueStats: result.monthlyIssueStats,
+          dailyIssueStats: result.dailyIssueStats,
           memberCount: organization.members.length,
           closedIssues: organization.getClosedIssueTitles(),
           topRepos: organization.getMostActiveRepos(),
@@ -111,12 +113,12 @@ export default function Dashboard({ credentials, onReset }) {
         <StatCard
           title="Issues Opened/Closed"
           value={`${data.yearlyStats.issues.opened}  / ${data.yearlyStats.issues.closed} `}
-          icon={CircleStackIcon}
+          icon={ChatBubbleBottomCenterTextIcon}
         />
         <StatCard
           title="PR Opened/Closed"
           value={`${data.yearlyStats.pullRequests.opened}  / ${data.yearlyStats.pullRequests.closed} `}
-          icon={ArrowPathIcon}
+          icon={ArrowsRightLeftIcon}
         />
       </div>
 
@@ -124,7 +126,7 @@ export default function Dashboard({ credentials, onReset }) {
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h3 className="text-lg font-semibold mb-4">Issue Trends</h3>
           <BurnupChart
-            monthlyStats={data.monthlyIssueStats}
+            dailyStats={data.dailyIssueStats}
             fromDate={credentials.fromDate}
             toDate={credentials.toDate}
           />
@@ -135,6 +137,37 @@ export default function Dashboard({ credentials, onReset }) {
           <PullRequestTypeChart prTypeStats={data.prTypes} />
         </div>
       </div>
+      <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold mb-4">Recently Closed Issues</h3>
+        <div className="space-y-2">
+          {data.closedIssues.slice(0, 5).map((issue) => (
+            <div
+              key={issue.id}
+              className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-2">
+                <ChatBubbleBottomCenterTextIcon className="h-4 w-4 text-gray-500" />
+                <span>{issue.title}</span>
+              </div>
+              <svg
+                className="h-4 w-4 text-green-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Add PRCarousel component */}
+      <PRCarousel pullRequests={data.pullRequests} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
         <div className="bg-white rounded-xl shadow-sm p-6">
@@ -148,9 +181,15 @@ export default function Dashboard({ credentials, onReset }) {
                 className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
               >
                 <span className="font-medium">{repo.name}</span>
-                <div className="text-sm text-gray-500">
-                  <span className="mr-4">{repo.commitCount} commits</span>
-                  <span>{repo.closedIssues} issues closed</span>
+                <div className="flex gap-4 text-sm text-gray-500">
+                  <span className="flex items-center text-gray-600">
+                    <CodeBracketIcon className="h-4 w-4 mr-1" />
+                    {repo.commitCount} commits
+                  </span>
+                  <span className="flex items-center text-gray-600">
+                    <ChatBubbleBottomCenterTextIcon className="h-4 w-4 mr-1" />
+                    {repo.closedIssues} issues
+                  </span>
                 </div>
               </div>
             ))}
@@ -176,23 +215,6 @@ export default function Dashboard({ credentials, onReset }) {
           </div>
         </div>
       </div>
-
-      <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold mb-4">Recently Closed Issues</h3>
-        <div className="space-y-2">
-          {data.closedIssues.slice(0, 5).map((issue) => (
-            <div
-              key={issue.id}
-              className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600"
-            >
-              {issue.title}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Add PRCarousel component */}
-      <PRCarousel pullRequests={data.pullRequests} />
     </div>
   );
 }

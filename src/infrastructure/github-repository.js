@@ -72,7 +72,7 @@ export class GithubRepository {
               closedIssues: filteredIssues
                 .filter((item) => item.state === "closed")
                 .map((item) => ({ id: item.id, title: item.title })),
-              monthlyStats: StatsCalculator.calculateMonthlyIssueStats(
+              dailyStats: StatsCalculator.calculateDailyIssueStats(
                 filteredIssues,
                 fromDate,
                 toDate,
@@ -83,7 +83,7 @@ export class GithubRepository {
               opened: filteredPRs.length,
               closed: filteredPRs.filter((pr) => pr.state === "closed").length,
               types: StatsCalculator.categorizePRTypes(filteredPRs),
-              all: pullRequests // Add the full PR data including images
+              all: pullRequests, // Add the full PR data including images
             },
             createdAt: repo.created_at,
             archivedAt: repo.archived_at,
@@ -157,24 +157,19 @@ export class GithubRepository {
         fromDate,
         toDate,
       ),
-      monthlyIssueStats: repoStats.reduce(
-        (acc, repo) => {
-          if (!repo.issues.monthlyStats) return acc;
+      dailyIssueStats: repoStats.reduce((acc, repo) => {
+        if (!repo.issues.dailyStats) return acc;
 
-          repo.issues.monthlyStats.forEach((month, index) => {
-            if (!acc[index]) {
-              acc[index] = { opened: 0, closed: 0, total: 0 };
-            }
-            acc[index].opened += month.opened;
-            acc[index].closed += month.closed;
-            acc[index].total += month.total;
-          });
-          return acc;
-        },
-        Array(12)
-          .fill()
-          .map(() => ({ opened: 0, closed: 0, total: 0 })),
-      ),
+        repo.issues.dailyStats.forEach((day, index) => {
+          if (!acc[index]) {
+            acc[index] = { opened: 0, closed: 0, total: 0 };
+          }
+          acc[index].opened += day.opened;
+          acc[index].closed += day.closed;
+          acc[index].total += day.total;
+        });
+        return acc;
+      }, []),
       pullRequests: allPullRequests, // Add all pull requests to the result
     };
 
