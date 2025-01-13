@@ -1,61 +1,51 @@
 import { useState, useEffect } from "react";
 import { GithubRepository } from "../infrastructure/github-repository";
 import { Organization } from "../domain/organization";
-import {
-  ChartBarIcon,
-  CodeBracketIcon,
-  ChatBubbleBottomCenterTextIcon,
-  ArrowsRightLeftIcon,
-} from "@heroicons/react/24/outline";
-import toast from "react-hot-toast";
 import BurnupChart from "./BurnupChart";
 import PullRequestTypeChart from "./PullRequestTypeChart";
 import AISummary from "./AISummary";
+import PRCarousel from "./PRCarousel";
+import toast from "react-hot-toast";
 
 export default function Dashboard({ credentials, onReset }) {
-  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState("Initializing...");
   const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [showJson, setShowJson] = useState(false);
+  const [data, setData] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const repo = new GithubRepository(credentials.token);
-        setLoadingMessage("Fetching organization data...");
-
-        const orgData = await repo.getOrganization(
+        setLoading(true);
+        const repository = new GithubRepository(credentials.token);
+        const result = await repository.getOrganization(
           credentials.organization,
           {
             fromDate: credentials.fromDate,
             toDate: credentials.toDate,
           },
-          (current, total) => {
-            setProgress({ current, total });
-            setLoadingMessage(
-              `Processing repositories (${current}/${total})...`,
-            );
-          },
+          (current, total) => setProgress({ current, total })
         );
 
         const organization = new Organization(
-          credentials.organization,
-          orgData.repos,
-          orgData.members,
-          orgData.yearlyStats,
+          result.name,
+          result.repos,
+          result.members,
+          result.yearlyStats
         );
 
         setData({
-          closedIssues: organization.getClosedIssueTitles(),
-          topReposByCommits: organization.getMostActiveRepos(),
-          memberCount: organization.members.length,
+          repos: organization.getMostActiveRepos(),
+          members: organization.getMostActiveMembers(),
           yearlyStats: organization.getYearlyStats(),
-          prTypeStats: organization.getPullRequestTypeStats(),
-          monthlyIssueStats: orgData.monthlyIssueStats,
+          prTypes: organization.getPullRequestTypeStats(),
+          monthlyIssueStats: result.monthlyIssueStats,
+          memberCount: organization.members.length,
+          closedIssues: organization.getClosedIssueTitles(),
+          pullRequests: result.pullRequests || [], // Add this line to include pull requests
         });
       } catch (error) {
-        toast.error(error.message);
+        console.error("Failed to fetch data:", error);
+        toast.error("Failed to fetch organization data");
       } finally {
         setLoading(false);
       }
@@ -64,163 +54,106 @@ export default function Dashboard({ credentials, onReset }) {
     fetchData();
   }, [credentials]);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-        <div className="text-gray-600 text-lg">{loadingMessage}</div>
-        {progress.total > 0 && (
-          <div className="mt-4 w-64">
-            <div className="bg-primary-100 rounded-full h-2.5">
-              <div
-                className="bg-primary-500 h-2.5 rounded-full transition-all duration-300"
-                style={{
-                  width: `${(progress.current / progress.total) * 100}%`,
-                }}
-              ></div>
-            </div>
-          </div>
-        )}
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mb-4"></div>
+          <p className="text-gray-600">
+            Analyzing repositories... {progress.current}/{progress.total}
+          </p>
+        </div>
       </div>
     );
   }
 
+  if (!data) return null;
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
-        <h1
-          onClick={onReset}
-          className="text-3xl font-bold text-primary-500 hover:text-primary-600 cursor-pointer transition-colors"
-        >
-          {credentials.organization} overview
+        <h1 className="text-2xl font-bold text-gray-900">
+          {credentials.organization} Analysis
         </h1>
-        <div
+        <button
           onClick={onReset}
-          className="text-sm text-gray-600 hover:text-gray-800 cursor-pointer transition-colors"
+          className="px-4 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
         >
-          {new Date(credentials.fromDate).toLocaleDateString()} -{" "}
-          {new Date(credentials.toDate).toLocaleDateString()}
-        </div>
+          Change Organization
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
-          <StatCard title="Total Commits" value={data.yearlyStats.commits} icon={CodeBracketIcon} />
-        </div>
-        <div className="lg:col-span-2 bg-gradient-to-br from-white to-secondary-50 p-6 rounded-xl shadow-sm hover:shadow-gb transition-shadow">
-          <h2 className="text-xl font-semibold mb-4 flex items-center text-primary-500">
-            <ChatBubbleBottomCenterTextIcon className="h-5 w-5 mr-2" />
-            Issues Burn Up
-          </h2>
+      <AISummary data={data} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Issue Trends</h3>
           <BurnupChart
             monthlyStats={data.monthlyIssueStats}
             fromDate={credentials.fromDate}
             toDate={credentials.toDate}
           />
         </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Pull Request Types</h3>
+          <PullRequestTypeChart prTypeStats={data.prTypes} />
+        </div>
       </div>
 
-      <h2 className="text-2xl font-bold text-secondary-500 mb-6">Statistics</h2>
-
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-        <StatCard
-          title="Issues"
-          value={`${data.yearlyStats.issues.opened} / ${data.yearlyStats.issues.closed}`}
-          subtitle="Opened / Closed"
-          icon={ChatBubbleBottomCenterTextIcon}
-        />
-        <StatCard
-          title="Pull Requests"
-          value={`${data.yearlyStats.pullRequests.opened} / ${data.yearlyStats.pullRequests.closed}`}
-          subtitle="Opened / Closed"
-          icon={ArrowsRightLeftIcon}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-white to-secondary-50 p-6 rounded-xl shadow-sm hover:shadow-gb transition-shadow">
-          <h2 className="text-xl font-semibold mb-4 flex items-center text-primary-500">
-            <CodeBracketIcon className="h-5 w-5 mr-2" />
-            Top Repositories
-          </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Most Active Repositories</h3>
           <div className="space-y-4">
-            {data.topReposByCommits.map((repo) => (
+            {data.repos.map((repo) => (
               <div
                 key={repo.name}
-                className="flex justify-between items-center hover:bg-white/50 p-2 rounded-lg transition-colors"
+                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
               >
-                <span className="text-gray-900">{repo.name}</span>
-                <div className="flex items-center space-x-4">
-                  <span className="flex items-center text-gray-600">
-                    <ChatBubbleBottomCenterTextIcon className="h-4 w-4 mr-1" />
-                    {repo.closedIssues}
-                  </span>
-                  <span className="flex items-center text-gray-600">
-                    <CodeBracketIcon className="h-4 w-4 mr-1" />
-                    {repo.commitCount || 0}
-                  </span>
+                <span className="font-medium">{repo.name}</span>
+                <div className="text-sm text-gray-500">
+                  <span className="mr-4">{repo.commitCount} commits</span>
+                  <span>{repo.closedIssues} issues closed</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-secondary-50 p-6 rounded-xl shadow-sm hover:shadow-gb transition-shadow">
-          <h2 className="text-xl font-semibold mb-4 flex items-center text-primary-500">
-            <ArrowsRightLeftIcon className="h-5 w-5 mr-2" />
-            Pull Requests by Type
-          </h2>
-          <PullRequestTypeChart prTypeStats={data.prTypeStats} />
-        </div>
-        <div className="bg-gradient-to-br from-white to-secondary-50 p-6 rounded-xl shadow-sm hover:shadow-gb transition-shadow">
-          <h2 className="text-xl font-semibold mb-4 flex items-center text-primary-500">
-            <ChatBubbleBottomCenterTextIcon className="h-5 w-5 mr-2" />
-            Closed Issues
-          </h2>
-          <div className="space-y-2">
-            {data.closedIssues.map((issue) => (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Most Active Contributors</h3>
+          <div className="space-y-4">
+            {data.members.map((member) => (
               <div
-                key={issue.id}
-                className="flex items-center hover:bg-white/50 p-2 rounded-lg transition-colors"
+                key={member.login}
+                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
               >
-                <span className="text-gray-900">{issue.title}</span>
+                <span className="font-medium">{member.login}</span>
+                <span className="text-sm text-gray-500">
+                  {member.contributions} contributions
+                </span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <AISummary data={data} />
+      {/* Add PRCarousel component */}
+      <PRCarousel pullRequests={data.pullRequests} />
 
-      <div className="mt-8">
-        <button
-          onClick={() => setShowJson(!showJson)}
-          className="mb-4 px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-white transition-colors print:hidden"
-        >
-          {showJson ? "Hide" : "Show"} JSON Data
-        </button>
-
-        {showJson && (
-          <pre className="bg-gradient-to-br from-white to-primary-50 p-4 rounded-lg overflow-auto max-h-96">
-            {JSON.stringify(data, null, 2)}
-          </pre>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value, subtitle, icon: Icon }) {
-  return (
-    <div className="bg-gradient-to-br from-white to-secondary-50 p-6 rounded-xl shadow-sm hover:shadow-gb transition-shadow">
-      <div className="flex items-center">
-        <div className="p-2 bg-primary-100 rounded-lg">
-          <Icon className="h-6 w-6 text-primary-500" />
+      <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold mb-4">Recently Closed Issues</h3>
+        <div className="space-y-2">
+          {data.closedIssues.slice(0, 5).map((issue) => (
+            <div
+              key={issue.id}
+              className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600"
+            >
+              {issue.title}
+            </div>
+          ))}
         </div>
       </div>
-      <p className="mt-4 text-2xl font-semibold text-gray-900">{value}</p>
-      <p className="text-gray-600">{title}</p>
-      {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
     </div>
   );
 }

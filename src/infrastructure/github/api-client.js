@@ -53,7 +53,7 @@ export class GitHubApiClient {
   }
 
   async getPullRequests(owner, repo) {
-    return await this.getAllPages(
+    const prs = await this.getAllPages(
       this.client.rest.pulls.list.bind(this.client.rest.pulls),
       {
         owner,
@@ -63,6 +63,62 @@ export class GitHubApiClient {
         direction: "desc",
       },
     );
+
+    // Fetch comments and review comments for each PR to find images
+    const prsWithImages = await Promise.all(
+      prs.map(async (pr) => {
+        const [comments, reviewComments] = await Promise.all([
+          this.getAllPages(
+            this.client.rest.issues.listComments.bind(this.client.rest.issues),
+            {
+              owner,
+              repo,
+              issue_number: pr.number,
+            }
+          ),
+          this.getAllPages(
+            this.client.rest.pulls.listReviewComments.bind(this.client.rest.pulls),
+            {
+              owner,
+              repo,
+              pull_number: pr.number,
+            }
+          )
+        ]);
+
+        // Extract image URLs from PR body and comments
+        const imageUrls = new Set();
+        
+        // Check PR body
+        const bodyImages = pr.body?.match(/!\[.*?\]\((.*?)\)/g)?.map(img => 
+          img.match(/!\[.*?\]\((.*?)\)/)[1]
+        ) || [];
+        bodyImages.forEach(url => imageUrls.add(url));
+
+        // Check comments
+        comments.forEach(comment => {
+          const matches = comment.body?.match(/!\[.*?\]\((.*?)\)/g)?.map(img => 
+            img.match(/!\[.*?\]\((.*?)\)/)[1]
+          ) || [];
+          matches.forEach(url => imageUrls.add(url));
+        });
+
+        // Check review comments
+        reviewComments.forEach(comment => {
+          const matches = comment.body?.match(/!\[.*?\]\((.*?)\)/g)?.map(img => 
+            img.match(/!\[.*?\]\((.*?)\)/)[1]
+          ) || [];
+          matches.forEach(url => imageUrls.add(url));
+        });
+
+        return {
+          ...pr,
+          images: Array.from(imageUrls)
+        };
+      })
+    );
+
+    return prsWithImages;
   }
 
   async getCurrentOpenIssues(owner, repo) {
@@ -98,7 +154,6 @@ export class GitHubApiClient {
         return this.getContributorStats(owner, repo, retries - 1);
       }
 
-      // Note: getContributorsStats doesn't need getAllPages as it returns complete stats in one call
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
       console.warn(`Failed to get contributor stats for ${repo}:`, error);
