@@ -1,1 +1,1 @@
-# github-weekly-stats
+# github-org-stats
