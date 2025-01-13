@@ -93,7 +93,7 @@ export default function Dashboard({ credentials, onReset }) {
           onClick={onReset}
           className="text-2xl font-bold text-gray-900 hover:text-primary-600 cursor-pointer"
         >
-          {credentials.organization} analysis
+          {credentials.organization} activity
         </h1>
         <div
           onClick={onReset}

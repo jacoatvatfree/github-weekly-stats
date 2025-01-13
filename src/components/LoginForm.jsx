@@ -6,14 +6,14 @@ export default function LoginForm({ onSubmit }) {
     const today = new Date();
     const lastWeek = new Date(today);
     lastWeek.setDate(today.getDate() - 7);
-    return lastWeek.toISOString().split('T')[0];
+    return lastWeek.toISOString().split("T")[0];
   };
 
   const [formData, setFormData] = useState({
     token: localStorage.getItem("github_token") || "",
     organization: "",
     fromDate: getLastWeek(),
-    toDate: new Date().toISOString().split('T')[0] // Today
+    toDate: new Date().toISOString().split("T")[0], // Today
   });
 
   const handleSubmit = (e) => {
@@ -35,7 +35,7 @@ export default function LoginForm({ onSubmit }) {
     <div className="max-w-md mx-auto mt-20">
       <div className="bg-white p-8 rounded-xl shadow-sm">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          GitHub Activity Analyzer
+          GitHub Activity Report
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
