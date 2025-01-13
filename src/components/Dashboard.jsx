@@ -89,15 +89,19 @@ export default function Dashboard({ credentials, onReset }) {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {credentials.organization} Analysis
-        </h1>
-        <button
+        <h1
           onClick={onReset}
-          className="px-4 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
+          className="text-2xl font-bold text-gray-900 hover:text-primary-600 cursor-pointer"
         >
-          Change Organization
-        </button>
+          {credentials.organization} analysis
+        </h1>
+        <div
+          onClick={onReset}
+          className="text-sm text-gray-500 hover:text-primary-600 cursor-pointer flex items-center"
+        >
+          {new Date(credentials.fromDate).toLocaleDateString()} -{" "}
+          {new Date(credentials.toDate).toLocaleDateString()}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
@@ -120,7 +124,7 @@ export default function Dashboard({ credentials, onReset }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Issue Trends</h3>
+          <h3 className="text-lg font-semibold mb-4">Issues Burn</h3>
           <BurnupChart
             dailyStats={data.dailyIssueStats}
             fromDate={credentials.fromDate}
