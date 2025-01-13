@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { GithubRepository } from "../infrastructure/github-repository";
 import { Organization } from "../domain/organization";
 import {
-  UsersIcon,
   ChartBarIcon,
   CodeBracketIcon,
   ChatBubbleBottomCenterTextIcon,
@@ -50,9 +49,6 @@ export default function Dashboard({ credentials, onReset }) {
         setData({
           closedIssues: organization.getClosedIssueTitles(),
           topReposByCommits: organization.getMostActiveRepos(),
-          topMembers: organization
-            .getMostActiveMembers()
-            .filter((x) => x.contributions > 0),
           memberCount: organization.members.length,
           yearlyStats: organization.getYearlyStats(),
           prTypeStats: organization.getPullRequestTypeStats(),
@@ -109,7 +105,7 @@ export default function Dashboard({ credentials, onReset }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
-          <StatCard title="Members" value={data.memberCount} icon={UsersIcon} />
+          <StatCard title="Total Commits" value={data.yearlyStats.commits} icon={CodeBracketIcon} />
         </div>
         <div className="lg:col-span-2 bg-gradient-to-br from-white to-secondary-50 p-6 rounded-xl shadow-sm hover:shadow-gb transition-shadow">
           <h2 className="text-xl font-semibold mb-4 flex items-center text-primary-500">
@@ -126,12 +122,7 @@ export default function Dashboard({ credentials, onReset }) {
 
       <h2 className="text-2xl font-bold text-secondary-500 mb-6">Statistics</h2>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatCard
-          title="Total Commits"
-          value={data.yearlyStats.commits}
-          icon={CodeBracketIcon}
-        />
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
         <StatCard
           title="Issues"
           value={`${data.yearlyStats.issues.opened} / ${data.yearlyStats.issues.closed}`}
@@ -183,40 +174,19 @@ export default function Dashboard({ credentials, onReset }) {
         </div>
         <div className="bg-gradient-to-br from-white to-secondary-50 p-6 rounded-xl shadow-sm hover:shadow-gb transition-shadow">
           <h2 className="text-xl font-semibold mb-4 flex items-center text-primary-500">
-            <ChartBarIcon className="h-5 w-5 mr-2" />
-            Top Contributors
+            <ChatBubbleBottomCenterTextIcon className="h-5 w-5 mr-2" />
+            Closed Issues
           </h2>
-          <div className="space-y-4">
-            {data.topMembers.map((member) => (
+          <div className="space-y-2">
+            {data.closedIssues.map((issue) => (
               <div
-                key={member.login}
-                className="flex justify-between items-center hover:bg-white/50 p-2 rounded-lg transition-colors"
+                key={issue.id}
+                className="flex items-center hover:bg-white/50 p-2 rounded-lg transition-colors"
               >
-                <span className="text-gray-900">{member.login}</span>
-                <span className="flex items-center text-gray-600">
-                  <CodeBracketIcon className="h-4 w-4 mr-1" />
-                  {member.contributions}
-                </span>
+                <span className="text-gray-900">{issue.title}</span>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      <div className="bg-gradient-to-br from-white to-secondary-50 p-6 rounded-xl shadow-sm hover:shadow-gb transition-shadow mt-8">
-        <h2 className="text-xl font-semibold mb-4 flex items-center text-primary-500">
-          <ChatBubbleBottomCenterTextIcon className="h-5 w-5 mr-2" />
-          Closed Issues
-        </h2>
-        <div className="space-y-2">
-          {data.closedIssues.map((issue) => (
-            <div
-              key={issue.id}
-              className="flex items-center hover:bg-white/50 p-2 rounded-lg transition-colors"
-            >
-              <span className="text-gray-900">{issue.title}</span>
-            </div>
-          ))}
         </div>
       </div>
 

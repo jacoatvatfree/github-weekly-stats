@@ -106,22 +106,17 @@ export class StatsCalculator {
             new Date(repo.archivedAt) <= toDate,
         ).length,
       },
-      commits: repoStats.reduce(
-        (sum, repo) =>
-          sum +
-          (repo.contributorStats?.reduce(
-            (total, contributor) =>
-              total +
-              contributor.weeks
-                .filter((week) => {
-                  const weekDate = new Date(week.w * 1000);
-                  return weekDate >= fromDate && weekDate <= toDate;
-                })
-                .reduce((weekSum, week) => weekSum + week.c, 0),
-            0,
-          ) || 0),
-        0,
-      ),
+      commits: repoStats.reduce((sum, repo) => {
+        return sum + (repo.contributorStats ? repo.contributorStats.reduce((repoSum, contributor) => {
+          return repoSum + contributor.weeks.reduce((weekSum, week) => {
+            const weekDate = new Date(week.w * 1000);
+            if (weekDate >= fromDate && weekDate <= toDate) {
+              return weekSum + week.c;
+            }
+            return weekSum;
+          }, 0);
+        }, 0) : 0);
+      }, 0),
       issues: {
         opened: repoStats.reduce((sum, repo) => sum + repo.issues.opened, 0),
         closed: repoStats.reduce((sum, repo) => sum + repo.issues.closed, 0),
