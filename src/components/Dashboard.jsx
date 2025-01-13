@@ -1,4 +1,9 @@
 import { useState, useEffect } from "react";
+import {
+  CodeBracketIcon,
+  CircleStackIcon,
+  ArrowPathIcon,
+} from "@heroicons/react/24/outline";
 import { GithubRepository } from "../infrastructure/github-repository";
 import { Organization } from "../domain/organization";
 import BurnupChart from "./BurnupChart";
@@ -6,6 +11,7 @@ import PullRequestTypeChart from "./PullRequestTypeChart";
 import AISummary from "./AISummary";
 import PRCarousel from "./PRCarousel";
 import toast from "react-hot-toast";
+import StatCard from "./StatCard";
 
 export default function Dashboard({ credentials, onReset }) {
   const [loading, setLoading] = useState(true);
@@ -23,14 +29,14 @@ export default function Dashboard({ credentials, onReset }) {
             fromDate: credentials.fromDate,
             toDate: credentials.toDate,
           },
-          (current, total) => setProgress({ current, total })
+          (current, total) => setProgress({ current, total }),
         );
 
         const organization = new Organization(
           result.name,
           result.repos,
           result.members,
-          result.yearlyStats
+          result.yearlyStats,
         );
 
         setData({
@@ -58,12 +64,22 @@ export default function Dashboard({ credentials, onReset }) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mb-4"></div>
-          <p className="text-gray-600">
-            Analyzing repositories... {progress.current}/{progress.total}
-          </p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+        <div className="text-gray-600 text-lg">
+          Analyzing repositories... {progress.current}/{progress.total}
         </div>
+        {progress.total > 0 && (
+          <div className="mt-4 w-64">
+            <div className="bg-primary-100 rounded-full h-2.5">
+              <div
+                className="bg-primary-500 h-2.5 rounded-full transition-all duration-300"
+                style={{
+                  width: `${(progress.current / progress.total) * 100}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+        )}{" "}
       </div>
     );
   }
@@ -86,6 +102,24 @@ export default function Dashboard({ credentials, onReset }) {
 
       <AISummary data={data} />
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <StatCard
+          title="Total Commits"
+          value={data.yearlyStats.commits}
+          icon={CodeBracketIcon}
+        />
+        <StatCard
+          title="Issues Opened/Closed"
+          value={`${data.yearlyStats.issues.opened}  / ${data.yearlyStats.issues.closed} `}
+          icon={CircleStackIcon}
+        />
+        <StatCard
+          title="PR Opened/Closed"
+          value={`${data.yearlyStats.pullRequests.opened}  / ${data.yearlyStats.pullRequests.closed} `}
+          icon={ArrowPathIcon}
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h3 className="text-lg font-semibold mb-4">Issue Trends</h3>
@@ -104,7 +138,9 @@ export default function Dashboard({ credentials, onReset }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Most Active Repositories</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            Most Active Repositories
+          </h3>
           <div className="space-y-4">
             {data.repos.map((repo) => (
               <div
@@ -122,7 +158,9 @@ export default function Dashboard({ credentials, onReset }) {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Most Active Contributors</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            Most Active Contributors
+          </h3>
           <div className="space-y-4">
             {data.members.map((member) => (
               <div
@@ -139,9 +177,6 @@ export default function Dashboard({ credentials, onReset }) {
         </div>
       </div>
 
-      {/* Add PRCarousel component */}
-      <PRCarousel pullRequests={data.pullRequests} />
-
       <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
         <h3 className="text-lg font-semibold mb-4">Recently Closed Issues</h3>
         <div className="space-y-2">
@@ -155,6 +190,9 @@ export default function Dashboard({ credentials, onReset }) {
           ))}
         </div>
       </div>
+
+      {/* Add PRCarousel component */}
+      <PRCarousel pullRequests={data.pullRequests} />
     </div>
   );
 }

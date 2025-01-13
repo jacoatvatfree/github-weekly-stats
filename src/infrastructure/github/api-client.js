@@ -65,7 +65,7 @@ export class GitHubApiClient {
     );
 
     // Filter PRs closed within date range
-    const filteredPRs = prs.filter(pr => {
+    const filteredPRs = prs.filter((pr) => {
       const closedAt = new Date(pr.closed_at);
       return closedAt >= fromDate && closedAt <= toDate;
     });
@@ -80,48 +80,53 @@ export class GitHubApiClient {
               owner,
               repo,
               issue_number: pr.number,
-            }
+            },
           ),
           this.getAllPages(
-            this.client.rest.pulls.listReviewComments.bind(this.client.rest.pulls),
+            this.client.rest.pulls.listReviewComments.bind(
+              this.client.rest.pulls,
+            ),
             {
               owner,
               repo,
               pull_number: pr.number,
-            }
-          )
+            },
+          ),
         ]);
 
         // Extract image URLs from PR body and comments
         const imageUrls = new Set();
-        
+
         // Check PR body
-        const bodyImages = pr.body?.match(/!\[.*?\]\((.*?)\)/g)?.map(img => 
-          img.match(/!\[.*?\]\((.*?)\)/)[1]
-        ) || [];
-        bodyImages.forEach(url => imageUrls.add(url));
+        const bodyImages =
+          pr.body
+            ?.match(/!\[.*?\]\((.*?)\)/g)
+            ?.map((img) => img.match(/!\[.*?\]\((.*?)\)/)[1]) || [];
+        bodyImages.forEach((url) => imageUrls.add(url));
 
         // Check comments
-        comments.forEach(comment => {
-          const matches = comment.body?.match(/!\[.*?\]\((.*?)\)/g)?.map(img => 
-            img.match(/!\[.*?\]\((.*?)\)/)[1]
-          ) || [];
-          matches.forEach(url => imageUrls.add(url));
+        comments.forEach((comment) => {
+          const matches =
+            comment.body
+              ?.match(/!\[.*?\]\((.*?)\)/g)
+              ?.map((img) => img.match(/!\[.*?\]\((.*?)\)/)[1]) || [];
+          matches.forEach((url) => imageUrls.add(url));
         });
 
         // Check review comments
-        reviewComments.forEach(comment => {
-          const matches = comment.body?.match(/!\[.*?\]\((.*?)\)/g)?.map(img => 
-            img.match(/!\[.*?\]\((.*?)\)/)[1]
-          ) || [];
-          matches.forEach(url => imageUrls.add(url));
+        reviewComments.forEach((comment) => {
+          const matches =
+            comment.body
+              ?.match(/!\[.*?\]\((.*?)\)/g)
+              ?.map((img) => img.match(/!\[.*?\]\((.*?)\)/)[1]) || [];
+          matches.forEach((url) => imageUrls.add(url));
         });
 
         return {
           ...pr,
-          images: Array.from(imageUrls)
+          images: Array.from(imageUrls),
         };
-      })
+      }),
     );
 
     return prsWithImages;
@@ -155,14 +160,22 @@ export class GitHubApiClient {
 
       // If status is 202, GitHub is still calculating the stats
       if (response.status === 202 && retries > 0) {
-        // Wait for 1 second before retrying
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // Wait for 2 seconds before retrying
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         return this.getContributorStats(owner, repo, retries - 1);
+      }
+
+      if (!response.data) {
+        console.warn(`No contributor stats data for ${owner}/${repo}`);
+        return [];
       }
 
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      console.warn(`Failed to get contributor stats for ${repo}:`, error);
+      console.warn(
+        `Failed to get contributor stats for ${owner}/${repo}:`,
+        error,
+      );
       return [];
     }
   }
