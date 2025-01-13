@@ -52,21 +52,27 @@ export class GitHubApiClient {
     );
   }
 
-  async getPullRequests(owner, repo) {
+  async getPullRequests(owner, repo, fromDate, toDate) {
     const prs = await this.getAllPages(
       this.client.rest.pulls.list.bind(this.client.rest.pulls),
       {
         owner,
         repo,
         state: "closed",
-        sort: "created",
+        sort: "updated",
         direction: "desc",
       },
     );
 
-    // Fetch comments and review comments for each PR to find images
+    // Filter PRs closed within date range
+    const filteredPRs = prs.filter(pr => {
+      const closedAt = new Date(pr.closed_at);
+      return closedAt >= fromDate && closedAt <= toDate;
+    });
+
+    // Fetch comments and review comments for filtered PRs
     const prsWithImages = await Promise.all(
-      prs.map(async (pr) => {
+      filteredPRs.map(async (pr) => {
         const [comments, reviewComments] = await Promise.all([
           this.getAllPages(
             this.client.rest.issues.listComments.bind(this.client.rest.issues),

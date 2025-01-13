@@ -39,7 +39,7 @@ export class GithubRepository {
             await Promise.all([
               this.api.getContributorStats(orgName, repo.name),
               this.api.getIssues(orgName, repo.name, fromDate.toISOString()),
-              this.api.getPullRequests(orgName, repo.name),
+              this.api.getPullRequests(orgName, repo.name, fromDate, toDate),
               this.api.getCurrentOpenIssues(orgName, repo.name),
             ]);
 
@@ -83,6 +83,7 @@ export class GithubRepository {
               opened: filteredPRs.length,
               closed: filteredPRs.filter((pr) => pr.state === "closed").length,
               types: StatsCalculator.categorizePRTypes(filteredPRs),
+              all: pullRequests // Add the full PR data including images
             },
             createdAt: repo.created_at,
             archivedAt: repo.archived_at,
@@ -121,6 +122,14 @@ export class GithubRepository {
       ...member,
       contributions: memberStats[member.login] || 0,
     }));
+
+    // Collect all pull requests with images across all repos
+    const allPullRequests = repoStats.reduce((acc, repo) => {
+      if (repo.pullRequests?.all) {
+        return [...acc, ...repo.pullRequests.all];
+      }
+      return acc;
+    }, []);
 
     const result = {
       repos: repoStats.map(({ name, stars, contributorStats, issues }) => ({
@@ -166,6 +175,7 @@ export class GithubRepository {
           .fill()
           .map(() => ({ opened: 0, closed: 0, total: 0 })),
       ),
+      pullRequests: allPullRequests, // Add all pull requests to the result
     };
 
     // Save the fresh data to cache
