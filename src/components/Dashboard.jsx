@@ -3,8 +3,6 @@ import {
   CodeBracketIcon,
   ChatBubbleBottomCenterTextIcon,
   ArrowsRightLeftIcon,
-  CircleStackIcon,
-  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { GithubRepository } from "../infrastructure/github-repository";
 import { Organization } from "../domain/organization";
@@ -140,7 +138,7 @@ export default function Dashboard({ credentials, onReset }) {
       <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
         <h3 className="text-lg font-semibold mb-4">Recently Closed Issues</h3>
         <div className="space-y-2">
-          {data.closedIssues.slice(0, 5).map((issue) => (
+          {data.closedIssues.map((issue) => (
             <div
               key={issue.id}
               className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center justify-between"

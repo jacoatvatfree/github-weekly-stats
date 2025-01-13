@@ -115,6 +115,8 @@ export class StatsCalculator {
 
             const weekCommits = contributor.weeks.reduce((weekSum, week) => {
               const weekDate = new Date(week.w * 1000);
+              // Add a day to the weekDate to ensure we catch commits in the last week
+              weekDate.setDate(weekDate.getDate() + 6);
               if (weekDate >= fromDate && weekDate <= toDate) {
                 return weekSum + (week.c || 0);
               }
@@ -126,6 +128,7 @@ export class StatsCalculator {
           0,
         );
 
+        console.log(`Commits for repo: ${repo.name}:`, repoCommits); // Debug log
         return sum + repoCommits;
       }, 0),
       issues: {

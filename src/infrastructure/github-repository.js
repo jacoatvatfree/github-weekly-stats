@@ -144,9 +144,10 @@ export class GithubRepository {
               contributor.weeks
                 .filter((week) => {
                   const weekDate = new Date(week.w * 1000);
+                  weekDate.setDate(weekDate.getDate() + 6); // Consider full week
                   return weekDate >= fromDate && weekDate <= toDate;
                 })
-                .reduce((weekSum, week) => weekSum + week.c, 0),
+                .reduce((weekSum, week) => weekSum + (week.c || 0), 0),
             0,
           ) || 0,
         closedIssuesTitles: issues.closedIssues,
