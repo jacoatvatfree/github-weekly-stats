@@ -2,54 +2,29 @@ import { Octokit } from "octokit";
 
 export class GitHubApiClient {
   constructor(token) {
+    this.token = token;
     this.client = new Octokit({ auth: token });
   }
 
-  async getAllPages(method, params) {
-    let allData = [];
-    let page = 1;
-    let hasNextPage = true;
+  async fetchImageAsBase64(imageUrl) {
+    try {
+      const response = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}&token=${this.token}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
 
-    while (hasNextPage) {
-      const response = await method({ ...params, page, per_page: 100 });
-      allData = [...allData, ...response.data];
-
-      const linkHeader = response.headers.link;
-      hasNextPage = linkHeader && linkHeader.includes('rel="next"');
-      page++;
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Error fetching image:", error);
+      return null;
     }
-
-    return allData;
-  }
-
-  async getMembers(orgName) {
-    return await this.getAllPages(
-      this.client.rest.orgs.listMembers.bind(this.client.rest.orgs),
-      { org: orgName },
-    );
-  }
-
-  async getRepos(orgName) {
-    return await this.getAllPages(
-      this.client.rest.repos.listForOrg.bind(this.client.rest.repos),
-      {
-        org: orgName,
-        sort: "updated",
-        type: "all",
-      },
-    );
-  }
-
-  async getIssues(owner, repo, since) {
-    return await this.getAllPages(
-      this.client.rest.issues.listForRepo.bind(this.client.rest.issues),
-      {
-        owner,
-        repo,
-        state: "all",
-        since,
-      },
-    );
   }
 
   async getPullRequests(owner, repo, fromDate, toDate) {
@@ -122,9 +97,17 @@ export class GitHubApiClient {
           matches.forEach((url) => imageUrls.add(url));
         });
 
+        // Fetch and convert images to base64
+        const imageBase64Array = await Promise.all(
+          Array.from(imageUrls).map(url => this.fetchImageAsBase64(url))
+        );
+
+        // Filter out any failed image fetches
+        const images = imageBase64Array.filter(Boolean);
+
         return {
           ...pr,
-          images: Array.from(imageUrls),
+          images,
         };
       }),
     );
@@ -132,51 +115,81 @@ export class GitHubApiClient {
     return prsWithImages;
   }
 
-  async getCurrentOpenIssues(owner, repo) {
-    try {
-      const issues = await this.getAllPages(
-        this.client.rest.issues.listForRepo.bind(this.client.rest.issues),
-        {
-          owner,
-          repo,
-          state: "open",
-        },
-      );
+  async getAllPages(method, params) {
+    const results = [];
+    let page = 1;
+    let hasMore = true;
 
-      // Filter out pull requests
-      return issues.filter((issue) => !issue.pull_request);
-    } catch (error) {
-      console.warn(`Failed to get open issues for ${repo}:`, error);
-      return [];
+    while (hasMore) {
+      const response = await method({
+        ...params,
+        per_page: 100,
+        page,
+      });
+
+      results.push(...response.data);
+      hasMore = response.data.length === 100;
+      page++;
     }
+
+    return results;
   }
 
-  async getContributorStats(owner, repo, retries = 3) {
+  async getMembers(org) {
+    return this.getAllPages(
+      this.client.rest.orgs.listMembers.bind(this.client.rest.orgs),
+      {
+        org,
+        role: "all",
+      },
+    );
+  }
+
+  async getRepos(org) {
+    return this.getAllPages(
+      this.client.rest.repos.listForOrg.bind(this.client.rest.repos),
+      {
+        org,
+        type: "all",
+      },
+    );
+  }
+
+  async getContributorStats(owner, repo) {
     try {
       const response = await this.client.rest.repos.getContributorsStats({
         owner,
         repo,
       });
-
-      // If status is 202, GitHub is still calculating the stats
-      if (response.status === 202 && retries > 0) {
-        // Wait for 2 seconds before retrying
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        return this.getContributorStats(owner, repo, retries - 1);
-      }
-
-      if (!response.data) {
-        console.warn(`No contributor stats data for ${owner}/${repo}`);
-        return [];
-      }
-
-      return Array.isArray(response.data) ? response.data : [];
+      return response.data;
     } catch (error) {
-      console.warn(
-        `Failed to get contributor stats for ${owner}/${repo}:`,
-        error,
-      );
-      return [];
+      console.warn(`Failed to get contributor stats for ${repo}:`, error);
+      return null;
     }
+  }
+
+  async getIssues(owner, repo, since) {
+    return this.getAllPages(
+      this.client.rest.issues.listForRepo.bind(this.client.rest.issues),
+      {
+        owner,
+        repo,
+        since,
+        state: "all",
+        sort: "created",
+        direction: "desc",
+      },
+    );
+  }
+
+  async getCurrentOpenIssues(owner, repo) {
+    return this.getAllPages(
+      this.client.rest.issues.listForRepo.bind(this.client.rest.issues),
+      {
+        owner,
+        repo,
+        state: "open",
+      },
+    );
   }
 }

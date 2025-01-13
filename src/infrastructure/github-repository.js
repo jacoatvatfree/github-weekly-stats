@@ -102,20 +102,22 @@ export class GithubRepository {
     // Calculate member contributions within date range
     const memberStats = {};
     repoStats.forEach((repo) => {
-      if (repo.contributorStats) {
-        repo.contributorStats.forEach((contributor) => {
-          const login = contributor.author?.login;
-          if (login) {
-            const filteredCommits = contributor.weeks
-              .filter((week) => {
-                const weekDate = new Date(week.w * 1000);
-                return weekDate >= fromDate && weekDate <= toDate;
-              })
-              .reduce((sum, week) => sum + week.c, 0);
-            memberStats[login] = (memberStats[login] || 0) + filteredCommits;
-          }
-        });
-      }
+      // Ensure contributorStats is an array before processing
+      const stats = Array.isArray(repo.contributorStats)
+        ? repo.contributorStats
+        : [];
+      stats.forEach((contributor) => {
+        const login = contributor?.author?.login;
+        if (login && Array.isArray(contributor.weeks)) {
+          const filteredCommits = contributor.weeks
+            .filter((week) => {
+              const weekDate = new Date(week.w * 1000);
+              return weekDate >= fromDate && weekDate <= toDate;
+            })
+            .reduce((sum, week) => sum + (week.c || 0), 0);
+          memberStats[login] = (memberStats[login] || 0) + filteredCommits;
+        }
+      });
     });
 
     const enhancedMembers = members.map((member) => ({
@@ -137,19 +139,21 @@ export class GithubRepository {
         stars,
         contributors: contributorStats?.length || 0,
         closedIssues: issues.closed || 0,
-        commitCount:
-          contributorStats?.reduce(
-            (sum, contributor) =>
-              sum +
-              contributor.weeks
-                .filter((week) => {
-                  const weekDate = new Date(week.w * 1000);
-                  weekDate.setDate(weekDate.getDate() + 6); // Consider full week
-                  return weekDate >= fromDate && weekDate <= toDate;
-                })
-                .reduce((weekSum, week) => weekSum + (week.c || 0), 0),
-            0,
-          ) || 0,
+        commitCount: Array.isArray(contributorStats)
+          ? contributorStats.reduce((sum, contributor) => {
+              if (!Array.isArray(contributor?.weeks)) return sum;
+              return (
+                sum +
+                contributor.weeks
+                  .filter((week) => {
+                    const weekDate = new Date(week.w * 1000);
+                    weekDate.setDate(weekDate.getDate() + 6); // Consider full week
+                    return weekDate >= fromDate && weekDate <= toDate;
+                  })
+                  .reduce((weekSum, week) => weekSum + (week.c || 0), 0)
+              );
+            }, 0)
+          : 0,
         closedIssuesTitles: issues.closedIssues,
       })),
       members: enhancedMembers,

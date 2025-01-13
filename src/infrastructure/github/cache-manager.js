@@ -5,12 +5,33 @@ export class CacheManager {
   }
 
   save(orgName, data) {
-    const cache = {
-      timestamp: new Date().getTime(),
-      orgName,
-      data,
-    };
-    localStorage.setItem(this.key, JSON.stringify(cache));
+    try {
+      const cache = {
+        timestamp: new Date().getTime(),
+        orgName,
+        data,
+      };
+      localStorage.setItem(this.key, JSON.stringify(cache));
+    } catch (error) {
+      // If localStorage is full, try removing the images
+      if (error.name === 'QuotaExceededError') {
+        console.warn('Storage quota exceeded, removing image data');
+        const cache = {
+          timestamp: new Date().getTime(),
+          orgName,
+          data: {
+            ...data,
+            pullRequests: data.pullRequests.map(pr => ({
+              ...pr,
+              images: [] // Remove images to save space
+            }))
+          }
+        };
+        localStorage.setItem(this.key, JSON.stringify(cache));
+      } else {
+        console.error('Failed to save to cache:', error);
+      }
+    }
   }
 
   get(orgName) {

@@ -107,13 +107,16 @@ export class StatsCalculator {
         ).length,
       },
       commits: repoStats.reduce((sum, repo) => {
-        if (!repo.contributorStats) return sum;
+        if (!repo.contributorStats || !Array.isArray(repo.contributorStats))
+          return sum;
 
         const repoCommits = repo.contributorStats.reduce(
           (repoSum, contributor) => {
-            if (!contributor.weeks) return repoSum;
+            if (!contributor?.weeks || !Array.isArray(contributor.weeks))
+              return repoSum;
 
             const weekCommits = contributor.weeks.reduce((weekSum, week) => {
+              if (!week?.w) return weekSum;
               const weekDate = new Date(week.w * 1000);
               // Add a day to the weekDate to ensure we catch commits in the last week
               weekDate.setDate(weekDate.getDate() + 6);

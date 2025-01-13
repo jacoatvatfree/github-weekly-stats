@@ -100,8 +100,6 @@ export default function Dashboard({ credentials, onReset }) {
         </button>
       </div>
 
-      <AISummary data={data} />
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
         <StatCard
           title="Total Commits"

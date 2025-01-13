@@ -6,14 +6,14 @@ export default function LoginForm({ onSubmit }) {
     const today = new Date();
     const lastWeek = new Date(today);
     lastWeek.setDate(today.getDate() - 7);
-    return lastWeek.toISOString().split("T")[0];
+    return lastWeek.toISOString().split('T')[0];
   };
 
   const [formData, setFormData] = useState({
     token: localStorage.getItem("github_token") || "",
     organization: "",
     fromDate: getLastWeek(),
-    toDate: new Date().toISOString().split("T")[0], // Today
+    toDate: new Date().toISOString().split('T')[0] // Today
   });
 
   const handleSubmit = (e) => {
