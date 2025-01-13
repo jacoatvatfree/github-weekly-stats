@@ -41,6 +41,7 @@ export default function Dashboard({ credentials, onReset }) {
           monthlyIssueStats: result.monthlyIssueStats,
           memberCount: organization.members.length,
           closedIssues: organization.getClosedIssueTitles(),
+          topRepos: organization.getMostActiveRepos(),
           pullRequests: result.pullRequests || [], // Add this line to include pull requests
         });
       } catch (error) {
