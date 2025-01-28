@@ -32,12 +32,7 @@ cd github-org-analyzer
 npm install
 ```
 
-3. Create a `.envrc` file in the root directory (for direnv) / OR set in the interface:
-```env
-export GITHUB_TOKEN=your_github_token_here
-```
-
-4. Start the development server:
+3. Start the development server:
 ```bash
 npm run dev
 ```
