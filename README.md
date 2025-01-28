@@ -2,8 +2,6 @@
 
 A dashboard for analyzing GitHub organization metrics and trends over the last week (or custom dates). This tool provides insights into repository activities, pull request patterns, and organizational health through interactive visualizations. It shows any images attached to closed pull requests for the duration.
 
-![GitHub Org Analyzer Dashboard](dashboard-screenshot.png)
-
 ## Features
 
 - 📊 Real-time organization metrics and statistics
