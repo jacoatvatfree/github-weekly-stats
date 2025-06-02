@@ -55,6 +55,9 @@ export class GithubRepository {
             const createdAt = new Date(item.created_at);
             return createdAt >= fromDate && createdAt <= toDate;
           });
+          const closedPRsTitles = filteredPRs
+            .filter((pr) => pr.state === "closed")
+            .map((pr) => ({ id: pr.id, title: pr.title, repo: `${orgName}/${repo.name}` }));
 
           processed++;
           if (onProgress) {
@@ -85,6 +88,7 @@ export class GithubRepository {
               types: StatsCalculator.categorizePRTypes(filteredPRs),
               all: pullRequests, // Add the full PR data including images
             },
+            closedPRsTitles: closedPRsTitles,
             createdAt: repo.created_at,
             archivedAt: repo.archived_at,
           };
@@ -134,7 +138,7 @@ export class GithubRepository {
     }, []);
 
     const result = {
-      repos: repoStats.map(({ name, stars, contributorStats, issues }) => ({
+      repos: repoStats.map(({ name, stars, contributorStats, issues, closedPRsTitles }) => ({
         name,
         stars,
         contributors: contributorStats?.length || 0,
@@ -155,6 +159,7 @@ export class GithubRepository {
             }, 0)
           : 0,
         closedIssuesTitles: issues.closedIssues,
+        closedPRsTitles: closedPRsTitles,
       })),
       members: enhancedMembers,
       yearlyStats: StatsCalculator.calculateYearlyStats(

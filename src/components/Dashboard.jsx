@@ -3,6 +3,7 @@ import {
   CodeBracketIcon,
   ChatBubbleBottomCenterTextIcon,
   ArrowsRightLeftIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
 import { GithubRepository } from "../infrastructure/github-repository";
 import { Organization } from "../domain/organization";
@@ -17,6 +18,19 @@ export default function Dashboard({ credentials, onReset }) {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [data, setData] = useState(null);
+  const [highlightedPRs, setHighlightedPRs] = useState(new Set());
+
+  const toggleHighlight = (prId) => {
+    setHighlightedPRs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(prId)) {
+        newSet.delete(prId);
+      } else {
+        newSet.add(prId);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,6 +61,7 @@ export default function Dashboard({ credentials, onReset }) {
           dailyIssueStats: result.dailyIssueStats,
           memberCount: organization.members.length,
           closedIssues: organization.getClosedIssueTitles(),
+          closedPRs: organization.getClosedPRTitles(),
           topRepos: organization.getMostActiveRepos(),
           pullRequests: result.pullRequests || [], // Add this line to include pull requests
         });
@@ -137,31 +152,80 @@ export default function Dashboard({ credentials, onReset }) {
           <PullRequestTypeChart prTypeStats={data.prTypes} />
         </div>
       </div>
+      {/* <div className="mt-8 bg-white rounded-xl shadow-sm p-6"> */}
+      {/*   <h3 className="text-lg font-semibold mb-4">Recently Closed Issues</h3> */}
+      {/*   <div className="space-y-2"> */}
+      {/*     {data.closedIssues.map((issue) => ( */}
+      {/*       <div */}
+      {/*         key={issue.id} */}
+      {/*         className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center justify-between" */}
+      {/*       > */}
+      {/*         <div className="flex items-center space-x-2"> */}
+      {/*           <ChatBubbleBottomCenterTextIcon className="h-4 w-4 text-gray-500" /> */}
+      {/*           <span>{issue.title}</span> */}
+      {/*         </div> */}
+      {/*         <svg */}
+      {/*           className="h-4 w-4 text-green-500" */}
+      {/*           fill="none" */}
+      {/*           stroke="currentColor" */}
+      {/*           viewBox="0 0 24 24" */}
+      {/*         > */}
+      {/*           <path */}
+      {/*             strokeLinecap="round" */}
+      {/*             strokeLinejoin="round" */}
+      {/*             strokeWidth={2} */}
+      {/*             d="M5 13l4 4L19 7" */}
+      {/*           /> */}
+      {/*         </svg> */}
+      {/*       </div> */}
+      {/*     ))} */}
+      {/*   </div> */}
+      {/* </div> */}
       <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold mb-4">Recently Closed Issues</h3>
+        <h3 className="text-lg font-semibold mb-4">
+          Recently Closed Pull Requests
+        </h3>
         <div className="space-y-2">
-          {data.closedIssues.map((issue) => (
+          {data.closedPRs.map((pr) => (
             <div
-              key={issue.id}
+              key={pr.id}
               className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center justify-between"
             >
               <div className="flex items-center space-x-2">
-                <ChatBubbleBottomCenterTextIcon className="h-4 w-4 text-gray-500" />
-                <span>{issue.title}</span>
+                <ArrowsRightLeftIcon className="h-4 w-4 text-gray-500" />
+                <span 
+                  className={`transition-colors duration-200 ${
+                    highlightedPRs.has(pr.id) 
+                      ? 'bg-yellow-200 px-1 rounded' 
+                      : ''
+                  }`}
+                >
+                  {pr.title} ({pr.repo})
+                </span>
               </div>
-              <svg
-                className="h-4 w-4 text-green-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
+              <div className="flex items-center space-x-2">
+                <StarIcon 
+                  className={`h-4 w-4 cursor-pointer transition-colors duration-200 ${
+                    highlightedPRs.has(pr.id) 
+                      ? 'text-yellow-500 fill-current' 
+                      : 'text-gray-400 hover:text-yellow-500'
+                  }`}
+                  onClick={() => toggleHighlight(pr.id)}
                 />
-              </svg>
+                <svg
+                  className="h-4 w-4 text-green-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
             </div>
           ))}
         </div>

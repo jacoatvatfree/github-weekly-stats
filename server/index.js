@@ -40,7 +40,7 @@ fastify.get("/api/proxy-image", async (request, reply) => {
 });
 
 try {
-  await fastify.listen({ port: 3001 });
+  await fastify.listen({ port: 3003 });
 } catch (err) {
   fastify.log.error(err);
   process.exit(1);

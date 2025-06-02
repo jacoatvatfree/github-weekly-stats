@@ -65,4 +65,13 @@ export class Organization {
       return acc;
     }, []);
   }
+
+  getClosedPRTitles() {
+    return this.repos.reduce((acc, repo) => {
+      if (repo.closedPRsTitles) {
+        acc.push(...repo.closedPRsTitles);
+      }
+      return acc;
+    }, []);
+  }
 }
