@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18.20.4-alpine as builder
+FROM node:20-alpine as builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY . .
 RUN yarn build
 
 # Production stage
-FROM node:18.20.4-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -35,7 +35,7 @@ COPY --from=builder /app/dist ./dist
 COPY server ./server
 
 # Install additional dependencies for the server
-RUN yarn add fastify @fastify/cors @fastify/static@7.0.4
+RUN yarn add fastify @fastify/cors @fastify/static
 
 # Expose port 80 (Caprover expects this)
 EXPOSE 80
