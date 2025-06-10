@@ -10,9 +10,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: vatfree/caprover-action@v1
+      
+      - name: Check Node Version
+        id: node-version
+        run: |
+          if [ -f ".nvmrc" ]; then
+            echo "version=$(cat .nvmrc)" >> $GITHUB_OUTPUT
+            echo "Using Node.js version from .nvmrc: $(cat .nvmrc)"
+          else
+            echo "version=18" >> $GITHUB_OUTPUT
+            echo "Using default Node.js version: 18"
+          fi
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
         with:
-          app_name: github-weekly
-          caprover_url: https://captain.nl.vatfree.com
-          caprover_name: cap1
-          app_token: ${{ secrets.CAPROVER_APP_TOKEN }}
+          node-version: ${{ steps.node-version.outputs.version }}
+          cache: "npm"
+
+      - name: Install Caprover CLI
+        run: npm install -g caprover
+
+      - name: Setup Deploy Directory
+        run: mkdir -p .deploy
+
+      - name: Create Deployment Archive
+        run: |
+          echo "Creating deployment archive..."
+          touch .dockerignore
+          cd .deploy
+          (cd ../ && tar --exclude-from=.dockerignore -cf .deploy/deploy.tar .)
+          if [ -f "captain-definition" ] && [ -f "Dockerfile" ]; then
+            tar -rvf deploy.tar captain-definition Dockerfile
+          else
+            echo "Warning: captain-definition or Dockerfile not found in .deploy directory"
+          fi
+          gzip -f deploy.tar
+
+      - name: Deploy to Caprover
+        env:
+          CAPROVER_APP: github-weekly
+          CAPROVER_URL: https://captain.nl.vatfree.com
+          CAPROVER_NAME: cap1
+          CAPROVER_APP_TOKEN: ${{ secrets.CAPROVER_APP_TOKEN }}
+        run: |
+          echo "Deploying to Caprover..."
+          cd .deploy
+          caprover deploy --tarFile deploy.tar.gz
