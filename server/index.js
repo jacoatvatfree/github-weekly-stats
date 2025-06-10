@@ -1,5 +1,11 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import fastifyStatic from "@fastify/static";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const fastify = Fastify({
   logger: true,
@@ -8,6 +14,12 @@ const fastify = Fastify({
 // Enable CORS
 await fastify.register(cors, {
   origin: true,
+});
+
+// Serve static files
+await fastify.register(fastifyStatic, {
+  root: path.join(__dirname, "..", "dist"),
+  prefix: "/",
 });
 
 // Proxy endpoint for GitHub images
@@ -40,7 +52,7 @@ fastify.get("/api/proxy-image", async (request, reply) => {
 });
 
 try {
-  await fastify.listen({ port: 3003 });
+  await fastify.listen({ port: 80, host: "0.0.0.0" });
 } catch (err) {
   fastify.log.error(err);
   process.exit(1);

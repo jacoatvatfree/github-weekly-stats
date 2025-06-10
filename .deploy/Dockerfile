@@ -16,13 +16,29 @@ COPY . .
 # Build the application
 RUN yarn build
 
+# Production stage
+FROM node:18-alpine
+
 WORKDIR /app
 
-# Install a simple static file server
-RUN npm install -g serve
+# Copy package files for production dependencies
+COPY package*.json ./
+COPY yarn.lock ./
+
+# Install only production dependencies
+RUN yarn install --frozen-lockfile --production
+
+# Copy built frontend
+COPY --from=builder /app/dist ./dist
+
+# Copy server code
+COPY server ./server
+
+# Install additional dependencies for the server
+RUN yarn add fastify @fastify/cors @fastify/static
 
 # Expose port 80 (Caprover expects this)
 EXPOSE 80
 
-# Serve the built application
-CMD ["serve", "-s", "dist", "-l", "80"]
+# Start the server
+CMD ["node", "server/index.js"]
