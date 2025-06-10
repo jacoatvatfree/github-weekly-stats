@@ -57,7 +57,12 @@ export class GithubRepository {
           });
           const closedPRsTitles = filteredPRs
             .filter((pr) => pr.state === "closed")
-            .map((pr) => ({ id: pr.id, title: pr.title, repo: `${orgName}/${repo.name}` }));
+            .map((pr) => ({ 
+              id: pr.id, 
+              title: pr.title, 
+              repo: `${orgName}/${repo.name}`,
+              number: pr.number || pr.id
+            }));
 
           processed++;
           if (onProgress) {

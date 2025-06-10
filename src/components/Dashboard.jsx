@@ -4,6 +4,8 @@ import {
   ChatBubbleBottomCenterTextIcon,
   ArrowsRightLeftIcon,
   StarIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { GithubRepository } from "../infrastructure/github-repository";
 import { Organization } from "../domain/organization";
@@ -19,17 +21,67 @@ export default function Dashboard({ credentials, onReset }) {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [data, setData] = useState(null);
   const [highlightedPRs, setHighlightedPRs] = useState(new Set());
+  const [isIssuesExpanded, setIsIssuesExpanded] = useState(true);
+  const [isPRsExpanded, setIsPRsExpanded] = useState(true);
 
-  const toggleHighlight = (prId) => {
-    setHighlightedPRs(prev => {
+  // Load highlighted PRs from localStorage on component mount
+  useEffect(() => {
+    const savedHighlights = localStorage.getItem('highlighted_prs');
+    if (savedHighlights) {
+      try {
+        const parsedData = JSON.parse(savedHighlights);
+        const now = new Date().getTime();
+        const fourHours = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+        
+        // Check if the data is still valid (within 4 hours)
+        if (parsedData.timestamp && (now - parsedData.timestamp) < fourHours) {
+          // Convert the stored format to a Set of PR keys (repo/prNumber)
+          const prKeys = new Set();
+          if (parsedData.prKeys) {
+            parsedData.prKeys.forEach(key => prKeys.add(key));
+          }
+          setHighlightedPRs(prKeys);
+        } else {
+          // Data is expired, remove it
+          localStorage.removeItem('highlighted_prs');
+        }
+      } catch (error) {
+        console.warn('Failed to parse highlighted PRs from localStorage:', error);
+        localStorage.removeItem('highlighted_prs');
+      }
+    }
+  }, []);
+
+  // Save highlighted PRs to localStorage whenever the set changes
+  useEffect(() => {
+    // Only save if we have highlights to save
+    if (highlightedPRs.size > 0) {
+      const dataToSave = {
+        prKeys: Array.from(highlightedPRs),
+        timestamp: new Date().getTime()
+      };
+      localStorage.setItem('highlighted_prs', JSON.stringify(dataToSave));
+    }
+  }, [highlightedPRs]);
+
+  const toggleHighlight = (pr) => {
+    // Create a unique key using repo and PR number
+    const prKey = `${pr.repo}#${pr.number}`;
+    
+    setHighlightedPRs((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(prId)) {
-        newSet.delete(prId);
+      if (newSet.has(prKey)) {
+        newSet.delete(prKey);
       } else {
-        newSet.add(prId);
+        newSet.add(prKey);
       }
       return newSet;
     });
+  };
+
+  const isPRHighlighted = (pr) => {
+    const prKey = `${pr.repo}#${pr.number}`;
+    return highlightedPRs.has(prKey);
   };
 
   useEffect(() => {
@@ -152,84 +204,115 @@ export default function Dashboard({ credentials, onReset }) {
           <PullRequestTypeChart prTypeStats={data.prTypes} />
         </div>
       </div>
-      {/* <div className="mt-8 bg-white rounded-xl shadow-sm p-6"> */}
-      {/*   <h3 className="text-lg font-semibold mb-4">Recently Closed Issues</h3> */}
-      {/*   <div className="space-y-2"> */}
-      {/*     {data.closedIssues.map((issue) => ( */}
-      {/*       <div */}
-      {/*         key={issue.id} */}
-      {/*         className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center justify-between" */}
-      {/*       > */}
-      {/*         <div className="flex items-center space-x-2"> */}
-      {/*           <ChatBubbleBottomCenterTextIcon className="h-4 w-4 text-gray-500" /> */}
-      {/*           <span>{issue.title}</span> */}
-      {/*         </div> */}
-      {/*         <svg */}
-      {/*           className="h-4 w-4 text-green-500" */}
-      {/*           fill="none" */}
-      {/*           stroke="currentColor" */}
-      {/*           viewBox="0 0 24 24" */}
-      {/*         > */}
-      {/*           <path */}
-      {/*             strokeLinecap="round" */}
-      {/*             strokeLinejoin="round" */}
-      {/*             strokeWidth={2} */}
-      {/*             d="M5 13l4 4L19 7" */}
-      {/*           /> */}
-      {/*         </svg> */}
-      {/*       </div> */}
-      {/*     ))} */}
-      {/*   </div> */}
-      {/* </div> */}
-      <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold mb-4">
-          Recently Closed Pull Requests
-        </h3>
-        <div className="space-y-2">
-          {data.closedPRs.map((pr) => (
-            <div
-              key={pr.id}
-              className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center justify-between"
-            >
-              <div className="flex items-center space-x-2">
-                <ArrowsRightLeftIcon className="h-4 w-4 text-gray-500" />
-                <span 
-                  className={`transition-colors duration-200 ${
-                    highlightedPRs.has(pr.id) 
-                      ? 'bg-yellow-200 px-1 rounded' 
-                      : ''
-                  }`}
+      
+      {data.closedIssues && data.closedIssues.length > 0 && (
+        <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
+          <div 
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setIsIssuesExpanded(!isIssuesExpanded)}
+          >
+            <h3 className="text-lg font-semibold">Recently Closed Issues</h3>
+            {isIssuesExpanded ? (
+              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+            )}
+          </div>
+          {isIssuesExpanded && (
+            <div className="space-y-2 mt-4">
+              {data.closedIssues.map((issue) => (
+                <div
+                  key={issue.id}
+                  className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center justify-between"
                 >
-                  {pr.title} ({pr.repo})
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <StarIcon 
-                  className={`h-4 w-4 cursor-pointer transition-colors duration-200 ${
-                    highlightedPRs.has(pr.id) 
-                      ? 'text-yellow-500 fill-current' 
-                      : 'text-gray-400 hover:text-yellow-500'
-                  }`}
-                  onClick={() => toggleHighlight(pr.id)}
-                />
-                <svg
-                  className="h-4 w-4 text-green-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
+                  <div className="flex items-center space-x-2">
+                    <ChatBubbleBottomCenterTextIcon className="h-4 w-4 text-gray-500" />
+                    <span>{issue.title}</span>
+                  </div>
+                  <svg
+                    className="h-4 w-4 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
-      </div>
+      )}
+      
+      {data.closedPRs && data.closedPRs.length > 0 && (
+        <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
+          <div 
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setIsPRsExpanded(!isPRsExpanded)}
+          >
+            <h3 className="text-lg font-semibold">
+              Recently Closed Pull Requests
+            </h3>
+            {isPRsExpanded ? (
+              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+            )}
+          </div>
+          {isPRsExpanded && (
+            <div className="space-y-2 mt-4">
+              {data.closedPRs.map((pr) => (
+                <div
+                  key={pr.id}
+                  className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center justify-between"
+                >
+                  <div className="flex items-center space-x-2">
+                    <ArrowsRightLeftIcon className="h-4 w-4 text-gray-500" />
+                    <span
+                      className={`transition-colors duration-200 ${
+                        isPRHighlighted(pr)
+                          ? "bg-yellow-200 px-1 rounded"
+                          : ""
+                      }`}
+                    >
+                      {pr.title} ({pr.repo})
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <StarIcon
+                      className={`h-4 w-4 cursor-pointer transition-colors duration-200 ${
+                        isPRHighlighted(pr)
+                          ? "text-yellow-500 fill-current"
+                          : "text-gray-400 hover:text-yellow-500"
+                      }`}
+                      onClick={() => toggleHighlight(pr)}
+                    />
+                    <svg
+                      className="h-4 w-4 text-green-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* Add PRCarousel component */}
       <PRCarousel pullRequests={data.pullRequests} />
 

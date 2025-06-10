@@ -1,0 +1,18 @@
+name: Deploy to Caprover
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vatfree/caprover-action@v1
+        with:
+          app_name: github-weekly
+          caprover_url: https://captain.nl.vatfree.com
+          caprover_name: cap1
+          app_token: ${{ secrets.CAPROVER_APP_TOKEN }}
