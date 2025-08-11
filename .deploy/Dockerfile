@@ -37,8 +37,12 @@ COPY server ./server
 # Install additional dependencies for the server
 RUN yarn add fastify @fastify/cors @fastify/static
 
-# Expose port 80 (Caprover expects this)
-EXPOSE 80
+# Set default port and allow override
+ARG PORT=80
+ENV PORT=${PORT}
+
+# Expose the port
+EXPOSE ${PORT}
 
 # Start the server
 CMD ["node", "server/index.js"]

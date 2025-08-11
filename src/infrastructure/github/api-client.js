@@ -72,28 +72,56 @@ export class GitHubApiClient {
         // Extract image URLs from PR body and comments
         const imageUrls = new Set();
 
+        const extractImageUrls = (text) => {
+          if (!text) return [];
+          
+          const urls = [];
+          
+          // Extract Markdown images: ![alt](url)
+          const markdownImages = text.match(/!\[.*?\]\((.*?)\)/g) || [];
+          markdownImages.forEach((img) => {
+            const url = img.match(/!\[.*?\]\((.*?)\)/)[1];
+            if (url) urls.push(url);
+          });
+          
+          // Extract HTML img tags with double quotes: <img src="url">
+          const htmlImagesDouble = text.match(/<img[^>]+src="([^"]*)"/g) || [];
+          htmlImagesDouble.forEach((img) => {
+            const url = img.match(/src="([^"]*)"/)[1];
+            if (url) urls.push(url);
+          });
+          
+          // Extract HTML img tags with single quotes: <img src='url'>
+          const htmlImagesSingle = text.match(/<img[^>]+src='([^']*)'/g) || [];
+          htmlImagesSingle.forEach((img) => {
+            const url = img.match(/src='([^']*)'/)[1];
+            if (url) urls.push(url);
+          });
+          
+          // Extract direct GitHub asset URLs and other image URLs
+          const directUrls = text.match(/https?:\/\/[^\s)]+\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?[^\s)]*)?/gi) || [];
+          directUrls.forEach((url) => urls.push(url));
+          
+          // Extract GitHub user-attachments URLs (common for drag-drop images)
+          const githubAssets = text.match(/https?:\/\/github\.com\/[^\/]+\/[^\/]+\/assets\/[^\s)]+/gi) || [];
+          githubAssets.forEach((url) => urls.push(url));
+          
+          return urls;
+        };
+
         // Check PR body
-        const bodyImages =
-          pr.body
-            ?.match(/!\[.*?\]\((.*?)\)/g)
-            ?.map((img) => img.match(/!\[.*?\]\((.*?)\)/)[1]) || [];
+        const bodyImages = extractImageUrls(pr.body);
         bodyImages.forEach((url) => imageUrls.add(url));
 
         // Check comments
         comments.forEach((comment) => {
-          const matches =
-            comment.body
-              ?.match(/!\[.*?\]\((.*?)\)/g)
-              ?.map((img) => img.match(/!\[.*?\]\((.*?)\)/)[1]) || [];
+          const matches = extractImageUrls(comment.body);
           matches.forEach((url) => imageUrls.add(url));
         });
 
         // Check review comments
         reviewComments.forEach((comment) => {
-          const matches =
-            comment.body
-              ?.match(/!\[.*?\]\((.*?)\)/g)
-              ?.map((img) => img.match(/!\[.*?\]\((.*?)\)/)[1]) || [];
+          const matches = extractImageUrls(comment.body);
           matches.forEach((url) => imageUrls.add(url));
         });
 
