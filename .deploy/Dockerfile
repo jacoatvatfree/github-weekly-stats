@@ -37,12 +37,12 @@ COPY server ./server
 # Install additional dependencies for the server
 RUN yarn add fastify @fastify/cors @fastify/static
 
-# Set default port and allow override
-ARG PORT=80
-ENV PORT=${PORT}
+# Set default API port and allow override
+ARG VITE_API_PORT=80
+ENV VITE_API_PORT=${VITE_API_PORT}
 
-# Expose the port
-EXPOSE ${PORT}
+# Expose the API port
+EXPOSE ${VITE_API_PORT}
 
 # Start the server
 CMD ["node", "server/index.js"]
