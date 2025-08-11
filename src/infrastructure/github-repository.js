@@ -18,6 +18,8 @@ export class GithubRepository {
 
     const fromDate = new Date(dateRange.fromDate);
     const toDate = new Date(dateRange.toDate);
+    const toDatePlusOne = new Date(toDate);
+    toDatePlusOne.setDate(toDate.getDate() + 1);
 
     // Get all data in parallel
     const [members, allRepos] = await Promise.all([
@@ -39,7 +41,7 @@ export class GithubRepository {
             await Promise.all([
               this.api.getContributorStats(orgName, repo.name),
               this.api.getIssues(orgName, repo.name, fromDate.toISOString()),
-              this.api.getPullRequests(orgName, repo.name, fromDate, toDate),
+              this.api.getPullRequests(orgName, repo.name, fromDate, toDatePlusOne),
               this.api.getCurrentOpenIssues(orgName, repo.name),
             ]);
 
@@ -48,12 +50,12 @@ export class GithubRepository {
             .filter((item) => !item.pull_request)
             .filter((item) => {
               const createdAt = new Date(item.created_at);
-              return createdAt >= fromDate && createdAt <= toDate;
+              return createdAt >= fromDate && createdAt < toDatePlusOne;
             });
 
           const filteredPRs = pullRequests.filter((item) => {
             const createdAt = new Date(item.created_at);
-            return createdAt >= fromDate && createdAt <= toDate;
+            return createdAt >= fromDate && createdAt < toDatePlusOne;
           });
           const closedPRsTitles = filteredPRs
             .filter((pr) => pr.state === "closed")
@@ -83,7 +85,7 @@ export class GithubRepository {
               dailyStats: StatsCalculator.calculateDailyIssueStats(
                 filteredIssues,
                 fromDate,
-                toDate,
+                toDatePlusOne,
                 currentOpenIssues.length,
               ),
             },
@@ -121,7 +123,7 @@ export class GithubRepository {
           const filteredCommits = contributor.weeks
             .filter((week) => {
               const weekDate = new Date(week.w * 1000);
-              return weekDate >= fromDate && weekDate <= toDate;
+              return weekDate >= fromDate && weekDate < toDatePlusOne;
             })
             .reduce((sum, week) => sum + (week.c || 0), 0);
           memberStats[login] = (memberStats[login] || 0) + filteredCommits;
@@ -157,7 +159,7 @@ export class GithubRepository {
                   .filter((week) => {
                     const weekDate = new Date(week.w * 1000);
                     weekDate.setDate(weekDate.getDate() + 6); // Consider full week
-                    return weekDate >= fromDate && weekDate <= toDate;
+                    return weekDate >= fromDate && weekDate < toDatePlusOne;
                   })
                   .reduce((weekSum, week) => weekSum + (week.c || 0), 0)
               );
@@ -170,7 +172,7 @@ export class GithubRepository {
       yearlyStats: StatsCalculator.calculateYearlyStats(
         repoStats,
         fromDate,
-        toDate,
+        toDatePlusOne,
       ),
       dailyIssueStats: repoStats.reduce((acc, repo) => {
         if (!repo.issues.dailyStats) return acc;

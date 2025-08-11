@@ -33,7 +33,7 @@ export class StatsCalculator {
       const createdDate = new Date(issue.created_at);
       const closedDate = issue.closed_at ? new Date(issue.closed_at) : null;
 
-      if (createdDate >= fromDate && createdDate <= toDate) {
+      if (createdDate >= fromDate && createdDate < toDate) {
         const dayIndex = Math.floor(
           (createdDate - fromDate) / (1000 * 60 * 60 * 24),
         );
@@ -43,7 +43,7 @@ export class StatsCalculator {
         }
       }
 
-      if (closedDate && closedDate >= fromDate && closedDate <= toDate) {
+      if (closedDate && closedDate >= fromDate && closedDate < toDate) {
         const dayIndex = Math.floor(
           (closedDate - fromDate) / (1000 * 60 * 60 * 24),
         );
@@ -97,13 +97,13 @@ export class StatsCalculator {
       repositories: {
         created: repoStats.filter((repo) => {
           const createdAt = new Date(repo.createdAt);
-          return createdAt >= fromDate && createdAt <= toDate;
+          return createdAt >= fromDate && createdAt < toDate;
         }).length,
         archived: repoStats.filter(
           (repo) =>
             repo.archivedAt &&
             new Date(repo.archivedAt) >= fromDate &&
-            new Date(repo.archivedAt) <= toDate,
+            new Date(repo.archivedAt) < toDate,
         ).length,
       },
       commits: repoStats.reduce((sum, repo) => {
@@ -120,7 +120,7 @@ export class StatsCalculator {
               const weekDate = new Date(week.w * 1000);
               // Add a day to the weekDate to ensure we catch commits in the last week
               weekDate.setDate(weekDate.getDate() + 6);
-              if (weekDate >= fromDate && weekDate <= toDate) {
+              if (weekDate >= fromDate && weekDate < toDate) {
                 return weekSum + (week.c || 0);
               }
               return weekSum;

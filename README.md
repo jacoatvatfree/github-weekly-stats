@@ -41,7 +41,8 @@ The application will be available at `http://localhost:80` with the API server r
 
 ## Environment Variables
 
-You can customize the ports used by the application:
+### Development
+You can customize the ports used during development:
 
 - `VITE_PORT` - Port for the frontend development server (default: 80)
 - `VITE_API_PORT` - Port for the API server (default: 81)
@@ -50,6 +51,11 @@ Example:
 ```bash
 VITE_PORT=3000 VITE_API_PORT=3001 npm run dev
 ```
+
+### Production
+In production, only the API server runs and serves both the frontend and API:
+
+- `VITE_API_PORT` - Port for the combined server (default: 80)
 
 ## Architecture
 
