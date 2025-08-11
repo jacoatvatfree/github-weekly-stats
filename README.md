@@ -37,7 +37,19 @@ npm install
 npm run dev
 ```
 
-The application will be available at `http://localhost:5173` with the API server running on port 3001.
+The application will be available at `http://localhost:80` with the API server running on port 81.
+
+## Environment Variables
+
+You can customize the ports used by the application:
+
+- `VITE_PORT` - Port for the frontend development server (default: 80)
+- `VITE_API_PORT` - Port for the API server (default: 81)
+
+Example:
+```bash
+VITE_PORT=3000 VITE_API_PORT=3001 npm run dev
+```
 
 ## Architecture
 

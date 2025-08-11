@@ -6,10 +6,10 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: `http://localhost:${process.env.VITE_API_PORT || 81}`,
         changeOrigin: true,
       },
     },
-    port: 3031,
+    port: process.env.VITE_PORT || 80,
   },
 });
