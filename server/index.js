@@ -59,10 +59,14 @@ fastify.post("/api/linear-proxy", async (request, reply) => {
     return reply.code(400).send({ error: "Missing query or apiKey in request body" });
   }
 
-  request.log.info(`Linear API request - Query: ${query.substring(0, 100)}...`);
-  request.log.info(`Linear API request - Variables: ${JSON.stringify(variables)}`);
-  request.log.info(`Linear API request - API Key starts with: ${apiKey.substring(0, 10)}...`);
-  request.log.info(`Linear API request - Full Authorization header: ${apiKey}`);
+  const isDebug = process.env.LOG_LEVEL === 'debug';
+  
+  if (isDebug) {
+    request.log.info(`Linear API request - Query: ${query.substring(0, 100)}...`);
+    request.log.info(`Linear API request - Variables: ${JSON.stringify(variables)}`);
+    request.log.info(`Linear API request - API Key starts with: ${apiKey.substring(0, 10)}...`);
+    request.log.info(`Linear API request - Full Authorization header: ${apiKey}`);
+  }
 
   try {
     const response = await fetch("https://api.linear.app/graphql", {
@@ -78,8 +82,11 @@ fastify.post("/api/linear-proxy", async (request, reply) => {
     });
 
     const responseText = await response.text();
-    request.log.info(`Linear API response status: ${response.status}`);
-    request.log.info(`Linear API response body: ${responseText}`);
+    
+    if (isDebug) {
+      request.log.info(`Linear API response status: ${response.status}`);
+      request.log.info(`Linear API response body: ${responseText}`);
+    }
 
     if (!response.ok) {
       request.log.error(`Linear API error: ${response.status} ${response.statusText}`, responseText);

@@ -56,43 +56,62 @@ export const createLinearIssueAdapter = (dependencies) => {
     
     const allIssues = await Promise.all(
       teams.map(async (team) => {
-         const query = `
-           query($teamId: ID!, $after: DateTimeOrDuration!, $before: DateTimeOrDuration!) {
-             issues(
-               filter: {
-                 team: { id: { eq: $teamId } }
-                 createdAt: { gte: $after, lte: $before }
-               }
-             ) {
-               nodes {
-                 id
-                 title
-                 state { name }
-                 createdAt
-                 completedAt
-                 labels { nodes { name } }
-                 assignee { displayName }
-                 url
-                 description
-                 team { name }
-               }
-             }
-           }
-         `;
+        const allIssuesForTeam = [];
+        let hasNextPage = true;
+        let cursor = null;
         
-        try {
-          const data = await makeLinearRequest(query, { 
-            teamId: team.id, 
-            after: fromDate.toISOString(), 
-            before: toDate.toISOString() 
-          });
-          
-          return data.data.issues.nodes || [];
-        } catch (error) {
-          console.warn(`Failed to fetch issues for team ${team.name}:`, error.message);
-          // Return empty array for teams we don't have access to instead of failing
-          return [];
+        while (hasNextPage) {
+          const query = `
+            query($teamId: ID!, $after: DateTimeOrDuration!, $before: DateTimeOrDuration!, $cursor: String) {
+              issues(
+                filter: {
+                  team: { id: { eq: $teamId } }
+                  createdAt: { gte: $after, lte: $before }
+                }
+                first: 100
+                after: $cursor
+              ) {
+                nodes {
+                  id
+                  title
+                  state { name }
+                  createdAt
+                  completedAt
+                  labels { nodes { name } }
+                  assignee { displayName }
+                  url
+                  description
+                  team { name }
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
+            }
+          `;
+        
+          try {
+            const data = await makeLinearRequest(query, { 
+              teamId: team.id, 
+              after: fromDate.toISOString(), 
+              before: toDate.toISOString(),
+              cursor: cursor
+            });
+            
+            const issuesData = data.data.issues;
+            allIssuesForTeam.push(...(issuesData.nodes || []));
+            
+            hasNextPage = issuesData.pageInfo.hasNextPage;
+            cursor = issuesData.pageInfo.endCursor;
+          } catch (error) {
+            console.warn(`Failed to fetch issues for team ${team.name}:`, error.message);
+            // Return empty array for teams we don't have access to instead of failing
+            hasNextPage = false;
+          }
         }
+        
+        return allIssuesForTeam;
       })
     );
     
@@ -106,38 +125,60 @@ export const createLinearIssueAdapter = (dependencies) => {
     
     const allOpenIssues = await Promise.all(
       teams.map(async (team) => {
-         const query = `
-           query($teamId: ID!) {
-             issues(
-               filter: { 
-                 team: { id: { eq: $teamId } }
-                 state: { type: { nin: ["completed", "canceled"] } } 
-               }
-             ) {
-               nodes {
-                 id
-                 title
-                 state { name }
-                 createdAt
-                 completedAt
-                 labels { nodes { name } }
-                 assignee { displayName }
-                 url
-                 description
-                 team { name }
-               }
-             }
-           }
-         `;
+        const allIssuesForTeam = [];
+        let hasNextPage = true;
+        let cursor = null;
         
-        try {
-          const data = await makeLinearRequest(query, { teamId: team.id });
-          return data.data.issues.nodes || [];
-        } catch (error) {
-          console.warn(`Failed to fetch open issues for team ${team.name}:`, error.message);
-          // Return empty array for teams we don't have access to instead of failing
-          return [];
+        while (hasNextPage) {
+          const query = `
+            query($teamId: ID!, $after: String) {
+              issues(
+                filter: { 
+                  team: { id: { eq: $teamId } }
+                  state: { type: { nin: ["completed", "canceled"] } } 
+                }
+                first: 100
+                after: $after
+              ) {
+                nodes {
+                  id
+                  title
+                  state { name }
+                  createdAt
+                  completedAt
+                  labels { nodes { name } }
+                  assignee { displayName }
+                  url
+                  description
+                  team { name }
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
+            }
+          `;
+        
+          try {
+            const data = await makeLinearRequest(query, { 
+              teamId: team.id, 
+              after: cursor 
+            });
+            
+            const issuesData = data.data.issues;
+            allIssuesForTeam.push(...(issuesData.nodes || []));
+            
+            hasNextPage = issuesData.pageInfo.hasNextPage;
+            cursor = issuesData.pageInfo.endCursor;
+          } catch (error) {
+            console.warn(`Failed to fetch open issues for team ${team.name}:`, error.message);
+            // Return empty array for teams we don't have access to instead of failing
+            hasNextPage = false;
+          }
         }
+        
+        return allIssuesForTeam;
       })
     );
     
