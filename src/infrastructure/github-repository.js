@@ -1,19 +1,41 @@
 import { GitHubApiClient } from "./github/api-client";
 import { CacheManager } from "./github/cache-manager";
 import { StatsCalculator } from "./github/stats-calculator";
+import { createIssueAdapter } from "./adapters/adapter-factory.js";
+import { createMultiSourceIssueService } from "./multi-source-issue-service.js";
 
 export class GithubRepository {
-  constructor(token) {
+  constructor(token, externalConfig = null, httpClient = fetch) {
     this.api = new GitHubApiClient(token);
     this.cache = new CacheManager();
+    this.externalConfig = externalConfig;
+    
+    // Initialize adapters with dependency injection
+    const githubAdapter = createIssueAdapter({
+      config: { enabled: false },
+      apiClient: this.api
+    });
+    
+    const externalAdapter = externalConfig?.enabled 
+      ? createIssueAdapter({
+          config: externalConfig,
+          httpClient,
+          apiClient: this.api
+        })
+      : null;
+    
+    this.issueService = createMultiSourceIssueService({
+      githubAdapter,
+      externalAdapter,
+      config: { ...externalConfig, defaultOwner: null }
+    });
   }
 
   async getOrganization(orgName, dateRange, onProgress) {
     const cacheKey = `${orgName}-${dateRange.fromDate}-${dateRange.toDate}`;
-    // Try to get data from cache first
-    const cachedData = this.cache.get(cacheKey);
-    if (cachedData) {
-      return cachedData;
+    const cachedResult = this.cache.get(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
     }
 
     const fromDate = new Date(dateRange.fromDate);
@@ -33,25 +55,63 @@ export class GithubRepository {
     let processed = 0;
     const totalRepos = ownRepos.length;
 
+    // Check if Linear is enabled - if so, fetch Linear data once for the organization
+    let organizationLinearIssues = [];
+    let organizationLinearOpenIssues = [];
+    
+    if (this.issueService.isExternalEnabled() && this.issueService.getExternalProvider() === 'linear') {
+      console.log('Linear is enabled - fetching organization-wide issue data...');
+      try {
+        const externalAdapter = this.issueService.externalAdapter;
+        if (externalAdapter) {
+          [organizationLinearIssues, organizationLinearOpenIssues] = await Promise.all([
+            externalAdapter.getIssues(null, fromDate, toDatePlusOne),
+            externalAdapter.getCurrentOpenIssues(null),
+          ]);
+          console.log(`Fetched ${organizationLinearIssues.length} Linear issues and ${organizationLinearOpenIssues.length} open issues`);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch Linear data, falling back to GitHub:', error);
+      }
+    }
+
     // Get stats for all repos in parallel
     const repoStats = await Promise.all(
       ownRepos.map(async (repo) => {
         try {
-          const [contributorStats, issues, pullRequests, currentOpenIssues] =
-            await Promise.all([
-              this.api.getContributorStats(orgName, repo.name),
-              this.api.getIssues(orgName, repo.name, fromDate.toISOString()),
-              this.api.getPullRequests(orgName, repo.name, fromDate, toDatePlusOne),
-              this.api.getCurrentOpenIssues(orgName, repo.name),
-            ]);
+          const [contributorStats, pullRequests] = await Promise.all([
+            this.api.getContributorStats(orgName, repo.name),
+            this.api.getPullRequests(orgName, repo.name, fromDate, toDatePlusOne),
+          ]);
 
-          // Filter issues and PRs by date range
-          const filteredIssues = issues
-            .filter((item) => !item.pull_request)
-            .filter((item) => {
-              const createdAt = new Date(item.created_at);
-              return createdAt >= fromDate && createdAt < toDatePlusOne;
-            });
+          // Use multi-source issue service for issue retrieval
+          let issues, currentOpenIssues;
+          
+          if (this.issueService.isExternalEnabled() && this.issueService.getExternalProvider() === 'linear') {
+            // When Linear is enabled, only the first repository gets the organization-wide issues
+            // This prevents duplication across all repositories
+            if (processed === 0) {
+              issues = organizationLinearIssues;
+              currentOpenIssues = organizationLinearOpenIssues;
+            } else {
+              // Other repositories get empty issue arrays to avoid duplication
+              issues = [];
+              currentOpenIssues = [];
+            }
+          } else {
+            // Use GitHub issues for this specific repository
+            const repoIdentifier = `${orgName}/${repo.name}`;
+            [issues, currentOpenIssues] = await Promise.all([
+              this.issueService.getIssuesForRepo(repoIdentifier, fromDate, toDatePlusOne),
+              this.issueService.getCurrentOpenIssuesForRepo(repoIdentifier),
+            ]);
+          }
+
+          // Filter issues by date range (since multi-source may return more than requested)
+          const filteredIssues = issues.filter((item) => {
+            const createdAt = new Date(item.createdAt);
+            return createdAt >= fromDate && createdAt < toDatePlusOne;
+          });
 
           const filteredPRs = pullRequests.filter((item) => {
             const createdAt = new Date(item.created_at);
@@ -77,8 +137,7 @@ export class GithubRepository {
             contributorStats,
             issues: {
               opened: filteredIssues.length,
-              closed: filteredIssues.filter((item) => item.state === "closed")
-                .length,
+              closed: filteredIssues.filter((item) => item.state === "closed").length,
               closedIssues: filteredIssues
                 .filter((item) => item.state === "closed")
                 .map((item) => ({ id: item.id, title: item.title })),
@@ -194,5 +253,42 @@ export class GithubRepository {
     this.cache.save(cacheKey, result);
 
     return result;
+  }
+
+  // Methods for managing external issue sources
+  getIssueSourceForRepo(repoName) {
+    return this.issueService.getIssueSourceForRepo(repoName);
+  }
+
+  isExternalEnabled() {
+    return this.issueService.isExternalEnabled();
+  }
+
+  getExternalProvider() {
+    return this.issueService.getExternalProvider();
+  }
+
+  updateExternalConfig(newConfig) {
+    this.externalConfig = newConfig;
+    
+    // Recreate adapters with new config
+    const githubAdapter = createIssueAdapter({
+      config: { enabled: false },
+      apiClient: this.api
+    });
+    
+    const externalAdapter = newConfig?.enabled 
+      ? createIssueAdapter({
+          config: newConfig,
+          httpClient: fetch,
+          apiClient: this.api
+        })
+      : null;
+    
+    this.issueService = createMultiSourceIssueService({
+      githubAdapter,
+      externalAdapter,
+      config: { ...newConfig, defaultOwner: null }
+    });
   }
 }

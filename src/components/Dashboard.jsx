@@ -23,6 +23,7 @@ export default function Dashboard({ credentials, onReset }) {
   const [highlightedPRs, setHighlightedPRs] = useState(new Set());
   const [isIssuesExpanded, setIsIssuesExpanded] = useState(true);
   const [isPRsExpanded, setIsPRsExpanded] = useState(true);
+  const [repository, setRepository] = useState(null);
 
   // Load highlighted PRs from localStorage on component mount
   useEffect(() => {
@@ -88,8 +89,10 @@ export default function Dashboard({ credentials, onReset }) {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const repository = new GithubRepository(credentials.token);
-        const result = await repository.getOrganization(
+        const githubRepository = new GithubRepository(credentials.token, credentials.externalConfig);
+        setRepository(githubRepository);
+        
+        const result = await githubRepository.getOrganization(
           credentials.organization,
           {
             fromDate: credentials.fromDate,
@@ -106,6 +109,7 @@ export default function Dashboard({ credentials, onReset }) {
         );
 
         setData({
+          organization,
           repos: organization.getMostActiveRepos(),
           members: organization.getMostActiveMembers(),
           yearlyStats: organization.getYearlyStats(),
@@ -116,6 +120,7 @@ export default function Dashboard({ credentials, onReset }) {
           closedPRs: organization.getClosedPRTitles(),
           topRepos: organization.getMostActiveRepos(),
           pullRequests: result.pullRequests || [], // Add this line to include pull requests
+          allRepos: result.repos, // Add raw repos data for issue source indicator
         });
       } catch (error) {
         console.error("Failed to fetch data:", error);

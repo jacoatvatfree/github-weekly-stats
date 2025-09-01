@@ -17,21 +17,22 @@ export class StatsCalculator {
       }));
 
     // Count issues that were already open before the start date
+    // Support both standardized format (createdAt, closedAt) and GitHub format (created_at, closed_at)
     const preExistingOpenIssues = issues.filter((issue) => {
-      const createdDate = new Date(issue.created_at);
-      const closedDate = issue.closed_at ? new Date(issue.closed_at) : null;
+      const createdDate = new Date(issue.createdAt || issue.created_at);
+      const closedDate = (issue.closedAt || issue.closed_at) ? new Date(issue.closedAt || issue.closed_at) : null;
       return createdDate < fromDate && (!closedDate || closedDate >= fromDate);
     }).length;
 
     const sortedIssues = [...issues].sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      (a, b) => new Date(a.createdAt || a.created_at) - new Date(b.createdAt || b.created_at),
     );
 
     let runningTotal = preExistingOpenIssues; // Start with pre-existing open issues
 
     sortedIssues.forEach((issue) => {
-      const createdDate = new Date(issue.created_at);
-      const closedDate = issue.closed_at ? new Date(issue.closed_at) : null;
+      const createdDate = new Date(issue.createdAt || issue.created_at);
+      const closedDate = (issue.closedAt || issue.closed_at) ? new Date(issue.closedAt || issue.closed_at) : null;
 
       if (createdDate >= fromDate && createdDate < toDate) {
         const dayIndex = Math.floor(
