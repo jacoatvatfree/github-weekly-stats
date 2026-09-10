@@ -48,28 +48,16 @@ export class GitHubApiClient {
     // Fetch comments and review comments for filtered PRs
     const prsWithImages = await Promise.all(
       filteredPRs.map(async (pr) => {
-        const [comments, reviewComments] = await Promise.all([
-          this.getAllPages(
-            this.client.rest.issues.listComments.bind(this.client.rest.issues),
-            {
-              owner,
-              repo,
-              issue_number: pr.number,
-            },
-          ),
-          this.getAllPages(
-            this.client.rest.pulls.listReviewComments.bind(
-              this.client.rest.pulls,
-            ),
-            {
-              owner,
-              repo,
-              pull_number: pr.number,
-            },
-          ),
-        ]);
+        const comments = await this.getAllPages(
+          this.client.rest.issues.listComments.bind(this.client.rest.issues),
+          {
+            owner,
+            repo,
+            issue_number: pr.number,
+          },
+        );
 
-        // Extract image URLs from PR body and comments
+        // Extract image URLs from PR conversation comments only
         const imageUrls = new Set();
 
         const extractImageUrls = (text) => {
@@ -109,18 +97,8 @@ export class GitHubApiClient {
           return urls;
         };
 
-        // Check PR body
-        const bodyImages = extractImageUrls(pr.body);
-        bodyImages.forEach((url) => imageUrls.add(url));
-
-        // Check comments
+        // Check conversation comments only
         comments.forEach((comment) => {
-          const matches = extractImageUrls(comment.body);
-          matches.forEach((url) => imageUrls.add(url));
-        });
-
-        // Check review comments
-        reviewComments.forEach((comment) => {
           const matches = extractImageUrls(comment.body);
           matches.forEach((url) => imageUrls.add(url));
         });
