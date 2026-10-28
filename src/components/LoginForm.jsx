@@ -64,6 +64,12 @@ export default function LoginForm({ onSubmit }) {
       toast.error("From date cannot be after to date");
       return;
     }
+    // Blur before the login form unmounts. Password managers (e.g. Bitwarden)
+    // keep their inline autofill menu anchored to the focused field, and it can
+    // linger over the dashboard if the focused input is removed without a blur.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     // Save token and organization to localStorage
     localStorage.setItem("github_token", formData.token);
     localStorage.setItem("github_organization", formData.organization);
@@ -76,13 +82,30 @@ export default function LoginForm({ onSubmit }) {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           GitHub Activity Report
         </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          autoComplete="off"
+          className="space-y-4"
+        >
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="github-token"
+              className="block text-sm font-medium text-gray-700"
+            >
               GitHub Token
             </label>
             <input
+              id="github-token"
+              name="github-token"
               type="password"
+              autoComplete="new-password"
+              data-bwignore="true"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-form-type="other"
+              spellCheck={false}
+              autoCapitalize="none"
+              autoCorrect="off"
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
               value={formData.token}
               onChange={(e) =>
@@ -92,11 +115,24 @@ export default function LoginForm({ onSubmit }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="github-organization"
+              className="block text-sm font-medium text-gray-700"
+            >
               Organization Name
             </label>
             <input
+              id="github-organization"
+              name="github-organization"
               type="text"
+              autoComplete="off"
+              data-bwignore="true"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-form-type="other"
+              spellCheck={false}
+              autoCapitalize="none"
+              autoCorrect="off"
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
               value={formData.organization}
               onChange={(e) =>
@@ -110,11 +146,17 @@ export default function LoginForm({ onSubmit }) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="from-date"
+                className="block text-sm font-medium text-gray-700"
+              >
                 From Date
               </label>
               <input
+                id="from-date"
+                name="from-date"
                 type="date"
+                autoComplete="off"
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
                 value={formData.fromDate}
                 onChange={(e) =>
@@ -123,11 +165,17 @@ export default function LoginForm({ onSubmit }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="to-date"
+                className="block text-sm font-medium text-gray-700"
+              >
                 To Date
               </label>
               <input
+                id="to-date"
+                name="to-date"
                 type="date"
+                autoComplete="off"
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
                 value={formData.toDate}
                 onChange={(e) =>

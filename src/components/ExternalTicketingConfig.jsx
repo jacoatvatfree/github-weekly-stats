@@ -102,12 +102,25 @@ export default function ExternalTicketingConfig({
 
               {/* API Key */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="linear-api-key"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Linear API Key
                 </label>
                 <div className="relative">
                   <input
+                    id="linear-api-key"
+                    name="linear-api-key"
                     type={showApiKey ? 'text' : 'password'}
+                    autoComplete="off"
+                    data-bwignore="true"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    autoCorrect="off"
                     value={config.credentials.apiKey}
                     onChange={(e) => setConfig(prev => ({
                       ...prev,
