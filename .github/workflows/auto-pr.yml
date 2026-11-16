@@ -1,0 +1,23 @@
+name: Auto Pull Request
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  auto-pull-request:
+    name: Create Auto PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: productiveme/auto-pr-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          target_branch: main
+          add_labels: WIP
